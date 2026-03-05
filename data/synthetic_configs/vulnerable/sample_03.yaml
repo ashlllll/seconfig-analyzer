@@ -1,0 +1,58 @@
+# Web Application Configuration - VULNERABLE SAMPLE 03
+# YAML format with nested structure
+
+application:
+  name: "VulnerableWebApp"
+  version: "2.1.0"
+  debug: true
+  testing: true
+  dev_mode: true
+  environment: "production"
+
+database:
+  host: "db.internal.com"
+  port: 5432
+  name: "webapp_prod"
+  username: "dbadmin"
+  password: "db_password_2024"
+  ssl_enabled: false
+  ssl_verify: false
+
+cache:
+  host: "redis.internal.com"
+  port: 6379
+  password: "redis123"
+
+security:
+  secret_key: "django-insecure-hardcoded-secret-key-12345"
+  allowed_hosts:
+    - "*"
+  cors_origin: "*"
+  session_timeout: 0
+  https_only: false
+  cipher_suite: "DES"
+  hash_algorithm: "SHA1"
+
+logging:
+  enabled: false
+  level: "DEBUG"
+  file: "/tmp/webapp.log"
+  format: "%(asctime)s %(message)s"
+
+api:
+  base_url: "http://internal-api.company.com"
+  key: "api_key_hardcoded_abc123"
+  timeout: 30
+
+admin:
+  host: "0.0.0.0"
+  port: 8080
+  username: "admin"
+  password: "admin"
+
+mail:
+  host: "smtp.example.com"
+  port: 587
+  username: "noreply@example.com"
+  password: "mailpassword456"
+  use_tls: false

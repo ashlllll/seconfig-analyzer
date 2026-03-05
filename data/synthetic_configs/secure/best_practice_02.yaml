@@ -1,0 +1,57 @@
+# Web Application Configuration - SECURE BEST PRACTICE 02
+# YAML format following security best practices
+
+application:
+  name: "SecureWebApp"
+  version: "2.1.0"
+  debug: false
+  testing: false
+  dev_mode: false
+  environment: "production"
+
+database:
+  host: "db.internal.com"
+  port: 5432
+  name: "webapp_prod"
+  username: "${DB_USERNAME}"
+  password: "${DB_PASSWORD}"
+  ssl_enabled: true
+  ssl_verify: true
+
+cache:
+  host: "redis.internal.com"
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+
+security:
+  secret_key: "${SECRET_KEY}"
+  allowed_hosts:
+    - "www.example.com"
+    - "api.example.com"
+  cors_origin: "${ALLOWED_ORIGINS}"
+  session_timeout: 1800
+  https_only: true
+  cipher_suite: "AES-256-GCM"
+  hash_algorithm: "SHA-256"
+
+logging:
+  enabled: true
+  level: "WARNING"
+  file: "/var/log/app/webapp.log"
+  format: "%(asctime)s %(levelname)s %(message)s"
+
+api:
+  base_url: "https://internal-api.company.com"
+  key: "${API_KEY}"
+  timeout: 30
+
+admin:
+  host: "127.0.0.1"
+  port: 8080
+
+mail:
+  host: "smtp.example.com"
+  port: 587
+  username: "${MAIL_USERNAME}"
+  password: "${MAIL_PASSWORD}"
+  use_tls: true

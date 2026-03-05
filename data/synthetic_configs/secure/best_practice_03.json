@@ -1,0 +1,46 @@
+{
+  "application": {
+    "name": "SecureMicroserviceApp",
+    "version": "1.0.0",
+    "debug": false,
+    "test_mode": false,
+    "environment": "production"
+  },
+  "database": {
+    "primary": {
+      "host": "prod-db.internal",
+      "port": 5432,
+      "name": "microservice_db",
+      "username": "${DB_USERNAME}",
+      "password": "${DB_PASSWORD}",
+      "ssl_verify": true
+    }
+  },
+  "authentication": {
+    "jwt_secret": "${JWT_SECRET}",
+    "token_expiry": 3600,
+    "session_timeout": 1800,
+    "hash_method": "SHA-256"
+  },
+  "api_keys": {
+    "google_maps": "${GOOGLE_MAPS_API_KEY}",
+    "sendgrid": "${SENDGRID_API_KEY}",
+    "twilio_token": "${TWILIO_AUTH_TOKEN}"
+  },
+  "security": {
+    "allowed_origins": "${ALLOWED_ORIGINS}",
+    "allowed_hosts": ["www.example.com", "api.example.com"],
+    "https_enabled": true,
+    "tls_version": "TLSv1.3",
+    "cipher": "AES-256-GCM"
+  },
+  "logging": {
+    "enabled": true,
+    "level": "WARNING",
+    "output": "/var/log/app/microservice.log"
+  },
+  "admin": {
+    "interface_host": "127.0.0.1",
+    "interface_port": 9000
+  }
+}

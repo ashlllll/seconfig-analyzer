@@ -1,0 +1,10 @@
+# Intentionally malformed YAML for parser error testing
+application:
+  name: "TestApp"
+  debug: true
+    bad_indent: this is wrong indentation
+  password: secret123
+  list_item:
+    - item1
+    - item2
+  broken: [unclosed bracket

@@ -1,0 +1,271 @@
+# ============================================================
+# Encryption Security Rules (5 rules)
+# Category: encryption
+# Rules: ENC-001 to ENC-005
+# ============================================================
+
+rules:
+  # ────────────────────────────────────────────────────────
+  - id: ENC-001
+    name: "Weak Cryptographic Algorithm"
+    category: encryption
+    severity: high
+    cvss_score: 7.4
+
+    description: >
+      A deprecated or weak cryptographic algorithm is configured.
+      Algorithms such as MD5, SHA1, DES, and RC4 are cryptographically
+      broken and should not be used for security-sensitive operations.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(algorithm|crypto|cipher|hash)\s*[=:]\s*["\']?(md5|sha1|des|rc4|3des|blowfish)["\']?'
+        - '(?i)(encryption_algorithm|hash_algorithm)\s*=\s*["\']?(md5|sha-?1|des)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)#.*md5'         # comment lines
+      - pattern: '(?i)=\s*\$\{'
+
+    risk_profile:
+      base_severity: 7.4
+      exploitability: 0.70
+      impact_confidentiality: high
+      impact_integrity: high
+      impact_availability: low
+      likelihood_mean: 0.60
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-1
+    cwe_id: CWE-327
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Replace with a strong algorithm: AES-256 for encryption, SHA-256/SHA-3 for hashing."
+      template_id: ENC-FIX-001
+      example_fix: "HASH_ALGORITHM=sha256"
+
+    references:
+      - title: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+        url: "https://cwe.mitre.org/data/definitions/327.html"
+
+    test_cases:
+      should_match:
+        - "HASH_ALGORITHM=md5"
+        - "algorithm: sha1"
+        - "cipher=DES"
+      should_not_match:
+        - "HASH_ALGORITHM=sha256"
+        - "algorithm: aes-256"
+
+  # ────────────────────────────────────────────────────────
+  - id: ENC-002
+    name: "SSL/TLS Verification Disabled"
+    category: encryption
+    severity: high
+    cvss_score: 7.5
+
+    description: >
+      SSL/TLS certificate verification is disabled. This removes protection
+      against man-in-the-middle attacks, allowing attackers to intercept
+      and modify encrypted communications undetected.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(ssl_verify|tls_verify|verify_ssl|verify_tls|ssl_verification)\s*[=:]\s*(false|0|no|off)'
+        - '(?i)(insecure|no_verify|skip_verify)\s*[=:]\s*(true|1|yes|on)'
+        - '(?i)REQUESTS_CA_BUNDLE\s*=\s*""'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)#'
+      - pattern: '(?i)dev|test|local'   # may be acceptable in dev
+
+    risk_profile:
+      base_severity: 7.5
+      exploitability: 0.65
+      impact_confidentiality: high
+      impact_integrity: high
+      impact_availability: low
+      likelihood_mean: 0.55
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-2
+    cwe_id: CWE-295
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Enable SSL/TLS verification. Never disable certificate verification in production."
+      template_id: ENC-FIX-002
+      example_fix: "SSL_VERIFY=true"
+
+    test_cases:
+      should_match:
+        - "SSL_VERIFY=false"
+        - "verify_ssl: false"
+        - "INSECURE=true"
+      should_not_match:
+        - "SSL_VERIFY=true"
+        - "verify_ssl: true"
+
+  # ────────────────────────────────────────────────────────
+  - id: ENC-003
+    name: "Insufficient Key Size"
+    category: encryption
+    severity: medium
+    cvss_score: 5.9
+
+    description: >
+      The configured encryption key size is below recommended minimums.
+      Short keys are vulnerable to brute-force attacks. RSA keys should
+      be at least 2048 bits; AES keys at least 128 bits.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(key_size|key_length|rsa_bits)\s*[=:]\s*([0-9]{1,3}|1024)\b'
+        - '(?i)(rsa_key_size)\s*=\s*(512|768|1024)\b'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 5.9
+      exploitability: 0.55
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.45
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-1
+    cwe_id: CWE-326
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Use RSA key size >= 2048 bits, or AES >= 128 bits."
+      template_id: ENC-FIX-003
+      example_fix: "RSA_KEY_SIZE=2048"
+
+    test_cases:
+      should_match:
+        - "RSA_KEY_SIZE=1024"
+        - "key_size: 512"
+      should_not_match:
+        - "RSA_KEY_SIZE=2048"
+        - "KEY_SIZE=256"
+
+  # ────────────────────────────────────────────────────────
+  - id: ENC-004
+    name: "Database Connection Without SSL"
+    category: encryption
+    severity: high
+    cvss_score: 7.1
+
+    description: >
+      Database connections are configured without SSL/TLS encryption.
+      Unencrypted database connections expose all data in transit,
+      including queries, results, and credentials.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(db_ssl|database_ssl|mysql_ssl|postgres_ssl)\s*[=:]\s*(false|0|no|off|disable)'
+        - '(?i)(sslmode)\s*[=:]\s*["\']?(disable|allow)["\']?'
+        - '(?i)(ssl_enabled)\s*[=:]\s*(false|0)'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)localhost'
+
+    risk_profile:
+      base_severity: 7.1
+      exploitability: 0.60
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.55
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-2
+    cwe_id: CWE-319
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Enable SSL for all database connections, especially in production."
+      template_id: ENC-FIX-004
+      example_fix: "DB_SSL=true"
+
+    test_cases:
+      should_match:
+        - "DB_SSL=false"
+        - "sslmode: disable"
+        - "ssl_enabled: false"
+      should_not_match:
+        - "DB_SSL=true"
+        - "sslmode: require"
+
+  # ────────────────────────────────────────────────────────
+  - id: ENC-005
+    name: "Weak TLS Version Configured"
+    category: encryption
+    severity: high
+    cvss_score: 7.5
+
+    description: >
+      An outdated TLS version (TLS 1.0 or TLS 1.1) is configured.
+      These versions have known vulnerabilities (BEAST, POODLE, DROWN)
+      and are deprecated by major browsers and RFCs.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(tls_version|ssl_version|min_tls)\s*[=:]\s*["\']?(TLSv?1\.0|TLSv?1\.1|SSLv[23])["\']?'
+        - '(?i)(tls_min_version)\s*[=:]\s*["\']?(1\.0|1\.1)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 7.5
+      exploitability: 0.65
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.50
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-2
+    cwe_id: CWE-326
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Configure minimum TLS version to TLS 1.2 or preferably TLS 1.3."
+      template_id: ENC-FIX-005
+      example_fix: "TLS_VERSION=TLSv1.3"
+
+    test_cases:
+      should_match:
+        - "TLS_VERSION=TLSv1.0"
+        - "tls_min_version: '1.1'"
+        - "SSL_VERSION=SSLv3"
+      should_not_match:
+        - "TLS_VERSION=TLSv1.3"
+        - "tls_min_version: '1.2'"

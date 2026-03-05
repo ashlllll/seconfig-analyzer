@@ -1,0 +1,178 @@
+# ============================================================
+# Logging Security Rules (3 rules)
+# Category: logging
+# Rules: LOG-001 to LOG-003
+# ============================================================
+
+rules:
+  # ────────────────────────────────────────────────────────
+  - id: LOG-001
+    name: "Logging Disabled"
+    category: logging
+    severity: medium
+    cvss_score: 5.3
+
+    description: >
+      Application logging is completely disabled. Without logs, security
+      incidents cannot be detected, investigated, or audited. Logging is
+      a fundamental requirement of the NIST Cybersecurity Framework (DE.CM).
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(logging_enabled|enable_logging|log_enabled)\s*[=:]\s*(false|0|no|off)'
+        - '(?i)(disable_logging|no_logging)\s*[=:]\s*(true|1|yes|on)'
+        - '(?i)(log_level)\s*[=:]\s*["\']?(none|off|disabled)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 5.3
+      exploitability: 0.30
+      impact_confidentiality: medium
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.45
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: DETECT
+    nist_category: DE.CM-7
+    cwe_id: CWE-778
+    owasp_category: A09:2021
+
+    remediation:
+      hint: "Enable logging at INFO level minimum. Use DEBUG only in development."
+      template_id: LOG-FIX-001
+      example_fix: "LOG_LEVEL=INFO\nLOGGING_ENABLED=true"
+
+    references:
+      - title: "CWE-778: Insufficient Logging"
+        url: "https://cwe.mitre.org/data/definitions/778.html"
+      - title: "OWASP A09:2021 Security Logging and Monitoring Failures"
+        url: "https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/"
+
+    test_cases:
+      should_match:
+        - "LOGGING_ENABLED=false"
+        - "LOG_LEVEL=none"
+        - "disable_logging: true"
+      should_not_match:
+        - "LOGGING_ENABLED=true"
+        - "LOG_LEVEL=INFO"
+
+  # ────────────────────────────────────────────────────────
+  - id: LOG-002
+    name: "Sensitive Data Logging Enabled"
+    category: logging
+    severity: high
+    cvss_score: 7.5
+
+    description: >
+      The application is configured to log sensitive data such as passwords,
+      tokens, or PII. Logging sensitive data creates compliance violations
+      (GDPR, PCI-DSS) and exposes secrets in log files which may be
+      accessible to unintended parties.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(log_sensitive|log_passwords|log_credentials|log_secrets)\s*[=:]\s*(true|1|yes|on)'
+        - '(?i)(log_request_body|log_headers|log_full_request)\s*[=:]\s*(true|1|yes)'
+        - '(?i)(sensitive_data_logging)\s*[=:]\s*(true|enabled|on)'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 7.5
+      exploitability: 0.60
+      impact_confidentiality: high
+      impact_integrity: low
+      impact_availability: low
+      likelihood_mean: 0.55
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-1
+    cwe_id: CWE-532
+    owasp_category: A09:2021
+
+    remediation:
+      hint: "Disable sensitive data logging. Use data masking if request logging is needed."
+      template_id: LOG-FIX-002
+      example_fix: "LOG_SENSITIVE_DATA=false"
+
+    references:
+      - title: "CWE-532: Insertion of Sensitive Information into Log File"
+        url: "https://cwe.mitre.org/data/definitions/532.html"
+
+    test_cases:
+      should_match:
+        - "LOG_SENSITIVE_DATA=true"
+        - "log_passwords: true"
+        - "SENSITIVE_DATA_LOGGING=enabled"
+      should_not_match:
+        - "LOG_SENSITIVE_DATA=false"
+        - "log_passwords: false"
+
+  # ────────────────────────────────────────────────────────
+  - id: LOG-003
+    name: "Verbose Debug Logging in Production"
+    category: logging
+    severity: low
+    cvss_score: 3.7
+
+    description: >
+      Log level is set to DEBUG, which may output sensitive application
+      internals including stack traces, SQL queries, and internal state.
+      DEBUG logging in production can expose implementation details
+      useful for attackers and impacts performance.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(log_level|logging_level)\s*[=:]\s*["\']?(debug|trace|verbose|all)["\']?'
+        - '(?i)(loglevel)\s*[=:]\s*["\']?(debug|trace)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+      - pattern: '(?i)dev|test|local|development'
+
+    risk_profile:
+      base_severity: 3.7
+      exploitability: 0.35
+      impact_confidentiality: medium
+      impact_integrity: low
+      impact_availability: low
+      likelihood_mean: 0.35
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: DETECT
+    nist_category: DE.CM-7
+    cwe_id: CWE-532
+    owasp_category: A09:2021
+
+    remediation:
+      hint: "Set log level to INFO or WARNING in production environments."
+      template_id: LOG-FIX-003
+      example_fix: "LOG_LEVEL=INFO"
+
+    test_cases:
+      should_match:
+        - "LOG_LEVEL=DEBUG"
+        - "logging_level: trace"
+        - "LOGLEVEL=verbose"
+      should_not_match:
+        - "LOG_LEVEL=INFO"
+        - "LOG_LEVEL=WARNING"
+        - "LOG_LEVEL=${LOG_LEVEL}"

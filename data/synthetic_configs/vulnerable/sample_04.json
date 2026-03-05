@@ -1,0 +1,54 @@
+{
+  "application": {
+    "name": "MicroserviceApp",
+    "version": "1.0.0",
+    "debug": true,
+    "test_mode": true,
+    "environment": "production"
+  },
+  "database": {
+    "primary": {
+      "host": "prod-db.internal",
+      "port": 3306,
+      "name": "microservice_db",
+      "username": "root",
+      "password": "rootpassword123",
+      "ssl_verify": false
+    },
+    "replica": {
+      "host": "replica-db.internal",
+      "port": 3306,
+      "username": "readonly",
+      "password": "readonly123"
+    }
+  },
+  "authentication": {
+    "jwt_secret": "jwt_secret_key_hardcoded_never_change",
+    "token_expiry": 0,
+    "session_timeout": 86400000,
+    "hash_method": "MD5"
+  },
+  "api_keys": {
+    "google_maps": "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz123456",
+    "sendgrid": "SG.abcdefghijklmnopqrstuvwxyz0123456789",
+    "twilio_token": "twilio_auth_token_hardcoded_xyz"
+  },
+  "security": {
+    "allowed_origins": "*",
+    "allowed_hosts": ["*"],
+    "https_enabled": false,
+    "tls_version": "TLSv1.0",
+    "cipher": "RC4"
+  },
+  "logging": {
+    "enabled": false,
+    "level": "DEBUG",
+    "output": "/tmp/microservice.log"
+  },
+  "admin": {
+    "interface_host": "0.0.0.0",
+    "interface_port": 9000,
+    "username": "admin",
+    "password": "admin"
+  }
+}

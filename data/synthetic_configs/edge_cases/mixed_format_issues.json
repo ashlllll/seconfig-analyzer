@@ -1,0 +1,15 @@
+{
+  "app": {
+    "name": "MixedIssuesApp",
+    "debug": true,
+    "version": "1.0"
+  },
+  "db": {
+    "password": "db_pass_123",
+    "ssl": false
+  },
+  "crypto": {
+    "algorithm": "MD5",
+    "key": "hardcoded_enc_key"
+  }
+}

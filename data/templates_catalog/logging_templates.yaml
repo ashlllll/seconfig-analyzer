@@ -1,0 +1,123 @@
+templates:
+
+  - id: LOG-FIX-001
+    name: "Enable Application Logging"
+    category: logging
+    applies_to:
+      - LOG-001
+    fix_strategy: configuration_change
+    description: "Enable logging that was disabled or set to off"
+    fix_template: "{original_key}=true"
+    variables: []
+    explanation: |
+      Disabled logging prevents detection of security incidents, errors, and
+      suspicious activity. Logging is a fundamental security control required
+      by most compliance frameworks (NIST, PCI-DSS, ISO 27001). Enable it
+      and ensure logs are stored securely and monitored.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.95
+      priority: high
+      effort: low
+    side_effects:
+      - "Configure log storage location and rotation policy"
+      - "Ensure log files are protected from unauthorized access"
+      - "Consider a centralized logging solution (ELK, Splunk, etc.)"
+    breaking_change: false
+    validation:
+      - type: regex
+        pattern: '^(true|True|TRUE|1|yes|Yes|enabled|Enabled)$'
+        description: "Logging must be enabled"
+    test_cases:
+      - input:
+          original_key: "LOGGING_ENABLED"
+          original_value: "false"
+        expected_output: "LOGGING_ENABLED=true"
+      - input:
+          original_key: "LOG_ENABLED"
+          original_value: "0"
+        expected_output: "LOG_ENABLED=true"
+
+  - id: LOG-FIX-002
+    name: "Set Appropriate Log Level"
+    category: logging
+    applies_to:
+      - LOG-002
+    fix_strategy: configuration_change
+    description: "Replace overly verbose log level (DEBUG) with appropriate level for production"
+    fix_template: "{original_key}=WARNING"
+    variables:
+      - name: log_level
+        type: string
+        default: "WARNING"
+        description: "Appropriate log level: WARNING for production, INFO for staging"
+    explanation: |
+      DEBUG log level captures all application activity including sensitive data
+      such as passwords, tokens, and personal information. Use WARNING or ERROR
+      in production to log only significant events, reducing exposure risk and
+      storage costs.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.88
+      priority: medium
+      effort: low
+    side_effects:
+      - "Some diagnostic information will no longer be logged"
+      - "Ensure ERROR and CRITICAL logs are still captured"
+      - "Use INFO level in staging/pre-production environments"
+    breaking_change: false
+    validation:
+      - type: regex
+        pattern: '^(WARNING|ERROR|CRITICAL|WARN|warning|error|critical)$'
+        description: "Log level must be WARNING or higher for production"
+    test_cases:
+      - input:
+          original_key: "LOG_LEVEL"
+          original_value: "DEBUG"
+        expected_output: "LOG_LEVEL=WARNING"
+      - input:
+          original_key: "LOGGING_LEVEL"
+          original_value: "debug"
+        expected_output: "LOGGING_LEVEL=WARNING"
+
+  - id: LOG-FIX-003
+    name: "Configure Secure Log File Path"
+    category: logging
+    applies_to:
+      - LOG-003
+    fix_strategy: configuration_change
+    description: "Set a secure, explicit log file path outside the web root"
+    fix_template: "{original_key}=/var/log/app/application.log"
+    variables:
+      - name: log_path
+        type: string
+        default: "/var/log/app/application.log"
+        description: "Secure log file path outside the web root"
+    explanation: |
+      Log files stored in world-readable directories, temporary folders, or
+      within the web root can be accessed by unauthorized users or exposed
+      via web requests. Store logs in a dedicated, access-controlled directory
+      such as /var/log/app/ with restricted permissions.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.80
+      priority: medium
+      effort: low
+    side_effects:
+      - "Create the directory /var/log/app/ with appropriate permissions"
+      - "Ensure the application process has write access to the log directory"
+      - "Configure log rotation to prevent disk space exhaustion"
+    breaking_change: false
+    validation:
+      - type: regex
+        pattern: '^/var/log/'
+        description: "Log path should be under /var/log/ or equivalent secure location"
+    test_cases:
+      - input:
+          original_key: "LOG_FILE"
+          original_value: "/tmp/app.log"
+        expected_output: "LOG_FILE=/var/log/app/application.log"
+      - input:
+          original_key: "LOG_PATH"
+          original_value: "./logs/debug.log"
+        expected_output: "LOG_PATH=/var/log/app/application.log"

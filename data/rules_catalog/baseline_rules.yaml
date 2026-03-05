@@ -1,0 +1,281 @@
+# ============================================================
+# Baseline Security Rules (5 rules)
+# Category: baseline
+# Rules: BASE-001 to BASE-005
+# ============================================================
+
+rules:
+  # ────────────────────────────────────────────────────────
+  - id: BASE-001
+    name: "Debug Mode Enabled"
+    category: baseline
+    severity: high
+    cvss_score: 7.3
+
+    description: >
+      The application is running in debug mode. Debug mode typically exposes
+      detailed error messages, stack traces, interactive debuggers, and
+      internal application state to end users, greatly aiding attackers
+      in understanding application internals.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(debug|app_debug|django_debug|flask_debug)\s*[=:]\s*(true|1|yes|on)'
+        - '(?i)(debug_mode)\s*[=:]\s*(true|1|yes|enabled)'
+        - '(?i)APP_ENV\s*=\s*(debug)'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+      - pattern: '(?i)dev|test|local'
+
+    risk_profile:
+      base_severity: 7.3
+      exploitability: 0.75
+      impact_confidentiality: high
+      impact_integrity: low
+      impact_availability: low
+      likelihood_mean: 0.65
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.IP-1
+    cwe_id: CWE-489
+    owasp_category: A05:2021
+
+    remediation:
+      hint: "Disable debug mode in production. Set DEBUG=false."
+      template_id: BASE-FIX-001
+      example_fix: "DEBUG=false"
+
+    references:
+      - title: "CWE-489: Active Debug Code"
+        url: "https://cwe.mitre.org/data/definitions/489.html"
+
+    test_cases:
+      should_match:
+        - "DEBUG=true"
+        - "APP_DEBUG=1"
+        - "debug: true"
+        - "FLASK_DEBUG=true"
+      should_not_match:
+        - "DEBUG=false"
+        - "DEBUG=${DEBUG}"
+        - "# DEBUG=true"
+
+  # ────────────────────────────────────────────────────────
+  - id: BASE-002
+    name: "Insecure Allowed Hosts Configuration"
+    category: baseline
+    severity: medium
+    cvss_score: 6.1
+
+    description: >
+      The application is configured to allow requests from all hosts using
+      a wildcard (*). This disables host header validation, making the
+      application vulnerable to host header injection attacks.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(allowed_hosts|allow_hosts)\s*[=:]\s*["\']?\*["\']?'
+        - '(?i)(allowed_hosts)\s*[=:]\s*\[\s*["\']?\*["\']?\s*\]'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 6.1
+      exploitability: 0.55
+      impact_confidentiality: medium
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.50
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.IP-1
+    cwe_id: CWE-183
+    owasp_category: A05:2021
+
+    remediation:
+      hint: "Specify explicit allowed hostnames instead of using wildcard (*)."
+      template_id: BASE-FIX-002
+      example_fix: "ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com"
+
+    test_cases:
+      should_match:
+        - "ALLOWED_HOSTS=*"
+        - "allow_hosts: '*'"
+        - "ALLOWED_HOSTS=['*']"
+      should_not_match:
+        - "ALLOWED_HOSTS=yourdomain.com"
+        - "ALLOWED_HOSTS=${ALLOWED_HOSTS}"
+
+  # ────────────────────────────────────────────────────────
+  - id: BASE-003
+    name: "Development Environment in Production"
+    category: baseline
+    severity: medium
+    cvss_score: 5.4
+
+    description: >
+      The application environment is set to development or testing mode.
+      Development environments often have reduced security controls,
+      verbose error reporting, and disabled authentication mechanisms
+      that should not be present in production.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(app_env|environment|node_env|rails_env|django_env)\s*[=:]\s*["\']?(development|dev|testing|test|local)["\']?'
+        - '(?i)(env)\s*[=:]\s*["\']?(dev|development|test|testing)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 5.4
+      exploitability: 0.50
+      impact_confidentiality: medium
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.45
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.IP-1
+    cwe_id: CWE-489
+    owasp_category: A05:2021
+
+    remediation:
+      hint: "Set environment to 'production' in production deployments."
+      template_id: BASE-FIX-003
+      example_fix: "APP_ENV=production"
+
+    test_cases:
+      should_match:
+        - "APP_ENV=development"
+        - "NODE_ENV=dev"
+        - "environment: test"
+      should_not_match:
+        - "APP_ENV=production"
+        - "NODE_ENV=production"
+        - "APP_ENV=${APP_ENV}"
+
+  # ────────────────────────────────────────────────────────
+  - id: BASE-004
+    name: "HTTP Used Instead of HTTPS"
+    category: baseline
+    severity: medium
+    cvss_score: 6.5
+
+    description: >
+      The application URL or external service endpoint is configured with
+      HTTP instead of HTTPS. Unencrypted HTTP connections expose all traffic
+      to interception, including authentication tokens and sensitive data.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(app_url|base_url|site_url|api_url)\s*[=:]\s*["\']?http://(?!localhost|127\.0\.0\.1)[^\s"\']{4,}'
+        - '(?i)(webhook_url|callback_url)\s*[=:]\s*["\']?http://(?!localhost)[^\s"\']{4,}'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)localhost|127\.0\.0\.1'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 6.5
+      exploitability: 0.60
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.50
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.DS-2
+    cwe_id: CWE-319
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Use HTTPS for all production URLs. HTTP is only acceptable for localhost."
+      template_id: BASE-FIX-004
+      example_fix: "APP_URL=https://yourdomain.com"
+
+    test_cases:
+      should_match:
+        - "APP_URL=http://myapp.com"
+        - "API_URL=http://api.example.com/v1"
+      should_not_match:
+        - "APP_URL=https://myapp.com"
+        - "APP_URL=http://localhost:3000"
+        - "APP_URL=${APP_URL}"
+
+  # ────────────────────────────────────────────────────────
+  - id: BASE-005
+    name: "Security Headers Disabled"
+    category: baseline
+    severity: low
+    cvss_score: 4.3
+
+    description: >
+      Security-related HTTP headers are explicitly disabled. Headers such as
+      X-Frame-Options, X-Content-Type-Options, and Content-Security-Policy
+      provide defence-in-depth against common web attacks like clickjacking
+      and MIME sniffing.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(x_frame_options|xframe_options)\s*[=:]\s*(false|0|none|disabled|off)'
+        - '(?i)(security_headers|x_content_type|csp_enabled)\s*[=:]\s*(false|0|disabled|off)'
+        - '(?i)(hsts_enabled|strict_transport)\s*[=:]\s*(false|0|no)'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 4.3
+      exploitability: 0.45
+      impact_confidentiality: medium
+      impact_integrity: medium
+      impact_availability: none
+      likelihood_mean: 0.40
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.IP-1
+    cwe_id: CWE-693
+    owasp_category: A05:2021
+
+    remediation:
+      hint: "Enable security headers. These provide important browser-level protections."
+      template_id: BASE-FIX-005
+      example_fix: "SECURITY_HEADERS=true\nHSTS_ENABLED=true\nX_FRAME_OPTIONS=DENY"
+
+    test_cases:
+      should_match:
+        - "SECURITY_HEADERS=false"
+        - "HSTS_ENABLED=false"
+        - "x_frame_options: disabled"
+      should_not_match:
+        - "SECURITY_HEADERS=true"
+        - "HSTS_ENABLED=true"
+        - "X_FRAME_OPTIONS=DENY"

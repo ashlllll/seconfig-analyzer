@@ -1,0 +1,195 @@
+templates:
+
+  - id: BASE-FIX-001
+    name: "Disable Development/Test Mode"
+    category: baseline
+    applies_to:
+      - BASE-001
+    fix_strategy: configuration_change
+    description: "Disable development, test, or maintenance mode flags"
+    fix_template: "{original_key}=false"
+    variables: []
+    explanation: |
+      Development or test mode flags often bypass authentication, disable
+      security checks, expose additional endpoints, or display verbose error
+      messages. These must always be disabled in production environments.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.97
+      priority: high
+      effort: low
+    side_effects:
+      - "Verify all production-specific configurations are active"
+      - "Ensure error handling is configured for production use"
+    breaking_change: false
+    validation:
+      - type: regex
+        pattern: '^(false|False|FALSE|0|no|No|off|Off)$'
+        description: "Development/test mode must be disabled"
+    test_cases:
+      - input:
+          original_key: "TESTING"
+          original_value: "true"
+        expected_output: "TESTING=false"
+      - input:
+          original_key: "DEV_MODE"
+          original_value: "1"
+        expected_output: "DEV_MODE=false"
+
+  - id: BASE-FIX-002
+    name: "Set Secure Session Timeout"
+    category: baseline
+    applies_to:
+      - BASE-002
+    fix_strategy: configuration_change
+    description: "Set session timeout to a secure value (1800 seconds / 30 minutes)"
+    fix_template: "{original_key}=1800"
+    variables:
+      - name: timeout_seconds
+        type: integer
+        default: 1800
+        description: "Session timeout in seconds (1800 = 30 minutes recommended)"
+    explanation: |
+      Excessively long session timeouts (or no timeout) allow attackers to
+      hijack idle sessions. The recommended maximum session lifetime is 30
+      minutes (1800 seconds) for sensitive applications, or up to 8 hours
+      (28800 seconds) for lower-sensitivity applications.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.85
+      priority: medium
+      effort: low
+    side_effects:
+      - "Users will be logged out after 30 minutes of inactivity"
+      - "Implement session renewal for active users to avoid disruption"
+    breaking_change: false
+    validation:
+      - type: range
+        min: 300
+        max: 28800
+        description: "Session timeout must be between 5 minutes and 8 hours"
+    test_cases:
+      - input:
+          original_key: "SESSION_TIMEOUT"
+          original_value: "0"
+        expected_output: "SESSION_TIMEOUT=1800"
+      - input:
+          original_key: "SESSION_LIFETIME"
+          original_value: "999999"
+        expected_output: "SESSION_LIFETIME=1800"
+
+  - id: BASE-FIX-003
+    name: "Enable HTTPS/Secure Mode"
+    category: baseline
+    applies_to:
+      - BASE-003
+    fix_strategy: configuration_change
+    description: "Enable HTTPS or secure communication mode"
+    fix_template: "{original_key}=true"
+    variables: []
+    explanation: |
+      Applications running without HTTPS transmit data including credentials
+      and session tokens in plain text. Enable secure mode to enforce HTTPS
+      and protect data in transit from interception and tampering.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.92
+      priority: high
+      effort: medium
+    side_effects:
+      - "Obtain and install a valid SSL/TLS certificate"
+      - "Configure HTTP to HTTPS redirect"
+      - "Update all internal service URLs to use HTTPS"
+    breaking_change: false
+    validation:
+      - type: regex
+        pattern: '^(true|True|TRUE|1|yes|Yes|enabled|https)$'
+        description: "Secure/HTTPS mode must be enabled"
+    test_cases:
+      - input:
+          original_key: "SECURE"
+          original_value: "false"
+        expected_output: "SECURE=true"
+      - input:
+          original_key: "USE_HTTPS"
+          original_value: "0"
+        expected_output: "USE_HTTPS=true"
+
+  - id: BASE-FIX-004
+    name: "Restrict Allowed Hosts"
+    category: baseline
+    applies_to:
+      - BASE-004
+    fix_strategy: template_replacement
+    description: "Replace wildcard allowed hosts with explicit hostname list"
+    fix_template: "{original_key}=${{{env_var_name}}}"
+    variables:
+      - name: env_var_name
+        type: string
+        default: "ALLOWED_HOSTS"
+        description: "Environment variable containing comma-separated allowed hostnames"
+    explanation: |
+      Wildcard (*) in ALLOWED_HOSTS disables host header validation, making
+      the application vulnerable to HTTP Host header attacks. Specify only
+      the exact hostnames that should be served by the application.
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.88
+      priority: medium
+      effort: low
+    side_effects:
+      - "Set ALLOWED_HOSTS to the actual domain names of the application"
+      - "Include all valid hostnames including www and non-www variants"
+    breaking_change: true
+    validation:
+      - type: not_contains
+        value: "*"
+        description: "Must not use wildcard for allowed hosts"
+    test_cases:
+      - input:
+          original_key: "ALLOWED_HOSTS"
+          original_value: "*"
+          env_var_name: "ALLOWED_HOSTS"
+        expected_output: "ALLOWED_HOSTS=${ALLOWED_HOSTS}"
+
+  - id: BASE-FIX-005
+    name: "Set Secure Database Port"
+    category: baseline
+    applies_to:
+      - BASE-005
+    fix_strategy: manual_guidance
+    description: "Guidance for securing exposed database ports and connections"
+    fix_template: ""
+    variables: []
+    explanation: |
+      Database services (MySQL 3306, PostgreSQL 5432, MongoDB 27017, Redis 6379)
+      should never be exposed on public network interfaces. Bind database
+      services to localhost (127.0.0.1) only and use encrypted tunnels or
+      VPN for remote access. This requires server-level configuration changes.
+    metadata:
+      auto_fixable: false
+      fix_confidence: 0.70
+      priority: high
+      effort: high
+    side_effects:
+      - "Remote database connections will require VPN or SSH tunnel"
+      - "Update connection strings in all applications"
+      - "Review firewall rules to block external database port access"
+    breaking_change: true
+    manual_steps:
+      - step: 1
+        action: "Edit database server configuration to bind to 127.0.0.1 only"
+        example: "MySQL: bind-address = 127.0.0.1 in my.cnf"
+      - step: 2
+        action: "Restart the database service to apply changes"
+      - step: 3
+        action: "Update firewall rules to block external access to database ports"
+        example: "iptables -A INPUT -p tcp --dport 3306 -j DROP"
+      - step: 4
+        action: "Configure SSH tunneling for legitimate remote database access"
+      - step: 5
+        action: "Update the DB_HOST in your configuration to 127.0.0.1"
+    validation:
+      - type: manual
+        description: "Verify database is not accessible from external networks"
+    test_cases: []

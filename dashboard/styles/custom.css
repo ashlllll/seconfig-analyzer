@@ -1,0 +1,170 @@
+/* ============================================================
+   SecConfig Analyzer — Custom Streamlit Theme
+   Aesthetic: Dark Terminal / Security Console
+   Fonts: JetBrains Mono (headings/code) + DM Sans (body)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+    --bg-base:        #06090d;
+    --bg-panel:       #0c1118;
+    --bg-card:        #101820;
+    --bg-hover:       #141e28;
+    --border:         #1a2838;
+    --border-bright:  #1e3650;
+    --text-primary:   #c9d8e8;
+    --text-secondary: #6b8299;
+    --text-muted:     #3d5166;
+    --accent-blue:    #3b8ef3;
+    --accent-cyan:    #26d4d4;
+    --accent-green:   #3dba6e;
+    --accent-orange:  #e88c3a;
+    --accent-red:     #f04f47;
+    --accent-yellow:  #d9a83a;
+}
+
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif !important;
+    background-color: var(--bg-base) !important;
+    color: var(--text-primary) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+#MainMenu, footer, header { visibility: hidden; }
+.stDeployButton { display: none !important; }
+
+[data-testid="stSidebar"] {
+    background-color: var(--bg-panel) !important;
+    border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] * { color: var(--text-primary) !important; }
+[data-testid="stSidebarNav"] a {
+    padding: 9px 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    transition: all 0.15s ease !important;
+}
+[data-testid="stSidebarNav"] a:hover { background: var(--bg-hover) !important; }
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: rgba(59,142,243,0.12) !important;
+    border-left: 2px solid var(--accent-blue) !important;
+    color: var(--accent-blue) !important;
+}
+
+[data-testid="stMainBlockContainer"] { padding: 0.5rem 2.5rem 1rem !important; max-width: 1380px !important; }
+
+h1, h2, h3, h4 { font-family: 'JetBrains Mono', monospace !important; letter-spacing: -0.01em !important; }
+h1 { font-size: 1.7rem !important; color: var(--text-primary) !important; }
+h2 { font-size: 1.1rem !important; color: var(--text-secondary) !important; }
+h3 { font-size: 0.95rem !important; color: var(--accent-cyan) !important; }
+
+[data-testid="stMetric"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 14px 18px !important;
+    transition: border-color 0.2s !important;
+}
+[data-testid="stMetric"]:hover { border-color: var(--border-bright) !important; }
+[data-testid="stMetricLabel"] {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: var(--text-muted) !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 1.9rem !important;
+    color: var(--text-primary) !important;
+}
+
+.stButton > button {
+    background: transparent !important;
+    color: var(--accent-blue) !important;
+    border: 1px solid var(--accent-blue) !important;
+    border-radius: 6px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 12px !important;
+    padding: 8px 18px !important;
+    letter-spacing: 0.03em !important;
+    transition: all 0.2s !important;
+}
+.stButton > button:hover {
+    background: rgba(59,142,243,0.14) !important;
+    color: var(--accent-cyan) !important;
+    border-color: var(--accent-cyan) !important;
+}
+.stButton > button[kind="primary"] { background: var(--accent-blue) !important; color: #fff !important; }
+
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    color: var(--text-primary) !important;
+    font-size: 14px !important;
+}
+
+[data-testid="stFileUploader"] {
+    background: var(--bg-card) !important;
+    border: 1px dashed var(--border-bright) !important;
+    border-radius: 10px !important;
+    padding: 28px !important;
+    transition: border-color 0.2s !important;
+}
+
+[data-testid="stExpander"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
+}
+
+pre, code {
+    font-family: 'JetBrains Mono', monospace !important;
+    background: var(--bg-panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    color: var(--text-primary) !important;
+    font-size: 12.5px !important;
+}
+
+[data-testid="stTabs"] button {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 12px !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 2px solid transparent !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] {
+    color: var(--accent-blue) !important;
+    border-bottom-color: var(--accent-blue) !important;
+}
+
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)) !important;
+}
+
+[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    border-left-width: 3px !important;
+    background: var(--bg-card) !important;
+}
+
+[data-testid="stChatMessage"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+}
+
+hr { border-color: var(--border) !important; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+[data-testid="stDataFrame"] { border: 1px solid var(--border) !important; border-radius: 8px !important; }

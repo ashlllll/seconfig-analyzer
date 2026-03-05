@@ -1,0 +1,36 @@
+# ============================================================
+# SecConfig Analyzer - Python Dependencies
+# Student: Qian Zhu (S1034134)
+# ============================================================
+
+# Core Framework
+streamlit
+
+# Configuration Parsing
+python-dotenv
+PyYAML
+
+# Data Processing
+pandas
+numpy
+
+# Visualization
+plotly
+
+# Statistics & Scientific Computing
+scipy
+
+# Testing
+pytest
+pytest-cov
+pytest-mock
+
+# Code Quality
+black
+flake8
+
+# Utilities
+tqdm
+
+# Optional: LLM Explanation Layer (disabled by default)
+# openai

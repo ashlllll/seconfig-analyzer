@@ -1,0 +1,272 @@
+# ============================================================
+# Access Control Security Rules (5 rules)
+# Category: access_control
+# Rules: AC-001 to AC-005
+# ============================================================
+
+rules:
+  # ────────────────────────────────────────────────────────
+  - id: AC-001
+    name: "Overly Permissive CORS Configuration"
+    category: access_control
+    severity: high
+    cvss_score: 7.2
+
+    description: >
+      CORS (Cross-Origin Resource Sharing) is configured to allow all origins
+      using a wildcard (*). This allows any website to make cross-origin
+      requests to the API, potentially enabling CSRF attacks and data theft.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(cors_origin|allowed_origins|cors_allow_origin)\s*[=:]\s*["\']?\*["\']?'
+        - '(?i)(cors_origins)\s*[=:]\s*[\["]?\*[\]"]?'
+        - '(?i)Access-Control-Allow-Origin\s*[=:]\s*["\']?\*["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 7.2
+      exploitability: 0.70
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.60
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.AC-5
+    cwe_id: CWE-942
+    owasp_category: A01:2021
+
+    remediation:
+      hint: "Specify explicit allowed origins instead of using wildcard (*)."
+      template_id: AC-FIX-001
+      example_fix: "CORS_ORIGIN=https://yourdomain.com"
+
+    test_cases:
+      should_match:
+        - "CORS_ORIGIN=*"
+        - "allowed_origins: '*'"
+        - "CORS_ALLOW_ORIGIN=*"
+      should_not_match:
+        - "CORS_ORIGIN=https://example.com"
+        - "CORS_ORIGIN=${ALLOWED_ORIGIN}"
+
+  # ────────────────────────────────────────────────────────
+  - id: AC-002
+    name: "Unrestricted Network Binding"
+    category: access_control
+    severity: high
+    cvss_score: 7.8
+
+    description: >
+      The application is configured to bind to all network interfaces (0.0.0.0).
+      This exposes the service on all available network interfaces, including
+      public-facing ones, potentially making internal services publicly accessible.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(host|bind|listen|server_host)\s*[=:]\s*["\']?0\.0\.0\.0["\']?'
+        - '(?i)(bind_address|listen_address)\s*[=:]\s*["\']?0\.0\.0\.0["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+      - pattern: '(?i)docker|container'   # may be necessary in containers
+
+    risk_profile:
+      base_severity: 7.8
+      exploitability: 0.75
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: medium
+      likelihood_mean: 0.60
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.AC-5
+    cwe_id: CWE-605
+    owasp_category: A01:2021
+
+    remediation:
+      hint: "Bind to localhost (127.0.0.1) for internal services, or a specific interface."
+      template_id: AC-FIX-002
+      example_fix: "HOST=127.0.0.1"
+
+    test_cases:
+      should_match:
+        - "HOST=0.0.0.0"
+        - "bind_address: 0.0.0.0"
+        - "LISTEN=0.0.0.0"
+      should_not_match:
+        - "HOST=127.0.0.1"
+        - "HOST=${APP_HOST}"
+
+  # ────────────────────────────────────────────────────────
+  - id: AC-003
+    name: "Overly Permissive File Permissions Setting"
+    category: access_control
+    severity: medium
+    cvss_score: 5.5
+
+    description: >
+      File or directory permissions are configured too permissively (e.g. 0777 or 777).
+      World-writable permissions allow any user on the system to modify files,
+      which can lead to privilege escalation or data tampering.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(file_mode|dir_mode|permissions|chmod)\s*[=:]\s*["\']?0?777["\']?'
+        - '(?i)(umask)\s*[=:]\s*["\']?0?000["\']?'
+        - '(?i)(file_permissions)\s*[=:]\s*["\']?0?666["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 5.5
+      exploitability: 0.50
+      impact_confidentiality: medium
+      impact_integrity: high
+      impact_availability: low
+      likelihood_mean: 0.40
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.AC-4
+    cwe_id: CWE-732
+    owasp_category: A01:2021
+
+    remediation:
+      hint: "Use restrictive permissions: 0644 for files, 0755 for directories."
+      template_id: AC-FIX-003
+      example_fix: "FILE_MODE=0644"
+
+    test_cases:
+      should_match:
+        - "FILE_MODE=0777"
+        - "permissions: 777"
+        - "UMASK=000"
+      should_not_match:
+        - "FILE_MODE=0644"
+        - "permissions: 755"
+
+  # ────────────────────────────────────────────────────────
+  - id: AC-004
+    name: "Default or Weak Admin Credentials"
+    category: access_control
+    severity: critical
+    cvss_score: 9.8
+
+    description: >
+      Default or weak administrator credentials are configured. Default credentials
+      are publicly known and are the first thing attackers try. This represents
+      one of the most easily exploitable vulnerabilities.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(admin_password|admin_pass|root_password)\s*[=:]\s*["\']?(admin|root|password|123456|test|default)["\']?'
+        - '(?i)(admin_user|admin_username)\s*[=:]\s*["\']?(admin|root|administrator)["\']?'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)=\s*<'
+      - pattern: '(?i)#'
+
+    risk_profile:
+      base_severity: 9.8
+      exploitability: 0.95
+      impact_confidentiality: high
+      impact_integrity: high
+      impact_availability: high
+      likelihood_mean: 0.85
+      likelihood_std: 0.08
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.AC-1
+    cwe_id: CWE-1188
+    owasp_category: A07:2021
+
+    remediation:
+      hint: "Change default credentials immediately. Use strong, unique passwords via environment variables."
+      template_id: AC-FIX-004
+      example_fix: "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+
+    test_cases:
+      should_match:
+        - "ADMIN_PASSWORD=admin"
+        - "root_password: password"
+        - "ADMIN_PASSWORD=123456"
+      should_not_match:
+        - "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+        - "ADMIN_PASSWORD=<change-me>"
+
+  # ────────────────────────────────────────────────────────
+  - id: AC-005
+    name: "Session Configuration Insecure"
+    category: access_control
+    severity: medium
+    cvss_score: 6.1
+
+    description: >
+      Session security settings are misconfigured. Insecure session settings
+      such as disabled HttpOnly or Secure flags on cookies expose sessions
+      to XSS attacks and interception over unencrypted connections.
+
+    detection:
+      type: regex
+      patterns:
+        - '(?i)(session_secure|cookie_secure)\s*[=:]\s*(false|0|no)'
+        - '(?i)(session_httponly|cookie_httponly)\s*[=:]\s*(false|0|no)'
+        - '(?i)(session_lifetime|cookie_lifetime)\s*[=:]\s*([0-9]{6,})'
+      apply_to: ["env", "yaml", "json"]
+
+    exclusions:
+      - pattern: '(?i)=\s*\$\{'
+      - pattern: '(?i)#'
+      - pattern: '(?i)dev|test|local'
+
+    risk_profile:
+      base_severity: 6.1
+      exploitability: 0.60
+      impact_confidentiality: high
+      impact_integrity: medium
+      impact_availability: low
+      likelihood_mean: 0.50
+      likelihood_std: 0.15
+      distribution_type: beta
+
+    nist_function: PROTECT
+    nist_category: PR.AC-3
+    cwe_id: CWE-614
+    owasp_category: A02:2021
+
+    remediation:
+      hint: "Enable Secure and HttpOnly flags on session cookies. Set reasonable session lifetime."
+      template_id: AC-FIX-005
+      example_fix: "SESSION_SECURE=true\nSESSION_HTTPONLY=true"
+
+    test_cases:
+      should_match:
+        - "SESSION_SECURE=false"
+        - "cookie_httponly: false"
+        - "COOKIE_SECURE=0"
+      should_not_match:
+        - "SESSION_SECURE=true"
+        - "cookie_httponly: true"
