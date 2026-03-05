@@ -1,58 +1,39 @@
-# Web Application Configuration - VULNERABLE SAMPLE 03
-# YAML format with nested structure
+# ============================================================
+# SYNTHETIC TEST FILE - sample_03.yaml
+# WARNING: Intentional security issues for testing purposes.
+#          None of these are real credentials.
+# ============================================================
 
-application:
-  name: "VulnerableWebApp"
-  version: "2.1.0"
+app:
+  name: MyWebApp
   debug: true
-  testing: true
-  dev_mode: true
-  environment: "production"
+  environment: development
 
 database:
-  host: "db.internal.com"
+  host: db.example.com
   port: 5432
-  name: "webapp_prod"
-  username: "dbadmin"
-  password: "db_password_2024"
-  ssl_enabled: false
-  ssl_verify: false
-
-cache:
-  host: "redis.internal.com"
-  port: 6379
-  password: "redis123"
-
-security:
-  secret_key: "django-insecure-hardcoded-secret-key-12345"
-  allowed_hosts:
-    - "*"
-  cors_origin: "*"
-  session_timeout: 0
-  https_only: false
-  cipher_suite: "DES"
-  hash_algorithm: "SHA1"
-
-logging:
-  enabled: false
-  level: "DEBUG"
-  file: "/tmp/webapp.log"
-  format: "%(asctime)s %(message)s"
+  name: mydb
+  username: admin
+  password: admin123
+  url: postgres://admin:password@db.example.com:5432/mydb
 
 api:
-  base_url: "http://internal-api.company.com"
-  key: "api_key_hardcoded_abc123"
-  timeout: 30
+  stripe_key: sk_live_abcdef1234567890abcdef12
+  github_token: ghp_abcdefghijklmnopqrstuvwxyz123456
 
-admin:
-  host: "0.0.0.0"
-  port: 8080
-  username: "admin"
-  password: "admin"
+security:
+  secret_key: mysecret
+  encryption_algorithm: MD5
+  ssl_verify: false
+  tls_version: TLSv1.0
 
-mail:
-  host: "smtp.example.com"
-  port: 587
-  username: "noreply@example.com"
-  password: "mailpassword456"
-  use_tls: false
+cors:
+  allowed_origins: "*"
+
+logging:
+  level: none
+  log_passwords: true
+
+server:
+  allowed_hosts: "*"
+  admin_password: admin

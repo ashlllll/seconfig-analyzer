@@ -1,119 +1,216 @@
 """
-pytest configuration and shared fixtures for SecConfig Analyzer tests.
-"""
+tests/conftest.py
+~~~~~~~~~~~~~~~~~
+Pytest configuration and shared fixtures for SecConfig Analyzer tests.
 
-import pytest
+Adds src/ to sys.path so imports work from any test file without
+needing to install the package.
+"""
 import os
 import sys
-from datetime import datetime
+import pytest
 
-# Add src to path so tests can import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# ── sys.path setup ────────────────────────────────────────────────────────────
+# Ensure both project root and src/ are on the path so tests can do:
+#   from parsers.env_parser import EnvParser
+#   from src.parsers.env_parser import EnvParser   (either works)
 
-# ─────────────────────────────────────────────
-# Fixture: sample raw content strings
-# ─────────────────────────────────────────────
+_HERE    = os.path.dirname(os.path.abspath(__file__))
+_ROOT    = os.path.dirname(_HERE)
+_SRC     = os.path.join(_ROOT, "src")
 
-@pytest.fixture
-def vulnerable_env_content():
-    return (
-        "# Test config\n"
-        "DATABASE_PASSWORD=admin123\n"
-        "DB_USERNAME=root\n"
-        "API_KEY=sk-abc123xyz789\n"
-        "SECRET_KEY=mysecrettoken\n"
-        "DEBUG=true\n"
-        "CORS_ORIGIN=*\n"
-        "CIPHER_ALGORITHM=DES\n"
-        "SSL_VERIFY=false\n"
-        "LOGGING_ENABLED=false\n"
-        "LOG_LEVEL=DEBUG\n"
-        "SESSION_TIMEOUT=0\n"
-        "TESTING=true\n"
-    )
+for _p in [_ROOT, _SRC]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-@pytest.fixture
-def secure_env_content():
-    return (
-        "# Secure config\n"
-        "DATABASE_PASSWORD=${DATABASE_PASSWORD}\n"
-        "DB_USERNAME=${DB_USERNAME}\n"
-        "API_KEY=${API_KEY}\n"
-        "SECRET_KEY=${SECRET_KEY}\n"
-        "DEBUG=false\n"
-        "CORS_ORIGIN=${ALLOWED_ORIGINS}\n"
-        "CIPHER_ALGORITHM=AES-256-GCM\n"
-        "SSL_VERIFY=true\n"
-        "LOGGING_ENABLED=true\n"
-        "LOG_LEVEL=WARNING\n"
-        "SESSION_TIMEOUT=1800\n"
-        "TESTING=false\n"
-    )
 
-@pytest.fixture
-def vulnerable_yaml_content():
-    return (
-        "application:\n"
-        "  debug: true\n"
-        "  testing: true\n"
-        "database:\n"
-        "  password: db_password_123\n"
-        "  ssl_verify: false\n"
-        "security:\n"
-        "  secret_key: hardcoded_secret_key\n"
-        "  cors_origin: \"*\"\n"
-        "  cipher_suite: DES\n"
-        "logging:\n"
-        "  enabled: false\n"
-        "  level: DEBUG\n"
-    )
+# ── Shared path fixtures ──────────────────────────────────────────────────────
 
-@pytest.fixture
-def vulnerable_json_content():
-    return (
-        '{\n'
-        '  "app": {"debug": true, "testing": true},\n'
-        '  "db": {"password": "jsonpassword123", "ssl_verify": false},\n'
-        '  "security": {"cors": "*", "cipher": "MD5"},\n'
-        '  "logging": {"enabled": false, "level": "DEBUG"}\n'
-        '}\n'
-    )
+@pytest.fixture(scope="session")
+def project_root() -> str:
+    """Return the absolute path to the project root directory."""
+    return _ROOT
 
-@pytest.fixture
-def empty_content():
-    return ""
 
-@pytest.fixture
-def comments_only_content():
-    return "# Only comments\n# No real config\n"
+@pytest.fixture(scope="session")
+def src_dir() -> str:
+    """Return the absolute path to src/."""
+    return _SRC
 
-@pytest.fixture
-def malformed_yaml_content():
-    return (
-        "app:\n"
-        "  name: test\n"
-        "    bad_indent: broken\n"
-        "  key: value\n"
-    )
 
-# ─────────────────────────────────────────────
-# Fixture: file paths from synthetic data
-# ─────────────────────────────────────────────
+@pytest.fixture(scope="session")
+def rules_dir() -> str:
+    """Return the absolute path to data/rules_catalog/."""
+    return os.path.join(_ROOT, "data", "rules_catalog")
+
+
+@pytest.fixture(scope="session")
+def templates_dir() -> str:
+    """Return the absolute path to data/templates_catalog/."""
+    return os.path.join(_ROOT, "data", "templates_catalog")
+
+
+@pytest.fixture(scope="session")
+def synthetic_data_dir() -> str:
+    """Return the absolute path to data/synthetic_configs/."""
+    return os.path.join(_ROOT, "data", "synthetic_configs")
+
+
+@pytest.fixture(scope="session")
+def vulnerable_dir(synthetic_data_dir) -> str:
+    """Return the path to data/synthetic_configs/vulnerable/."""
+    return os.path.join(synthetic_data_dir, "vulnerable")
+
+
+@pytest.fixture(scope="session")
+def secure_dir(synthetic_data_dir) -> str:
+    """Return the path to data/synthetic_configs/secure/."""
+    return os.path.join(synthetic_data_dir, "secure")
+
+
+@pytest.fixture(scope="session")
+def edge_cases_dir(synthetic_data_dir) -> str:
+    """Return the path to data/synthetic_configs/edge_cases/."""
+    return os.path.join(synthetic_data_dir, "edge_cases")
+
+
+# ── Parser fixtures ───────────────────────────────────────────────────────────
+
+@pytest.fixture(scope="session")
+def env_parser():
+    """Return an EnvParser instance."""
+    from parsers.env_parser import EnvParser
+    return EnvParser()
+
+
+@pytest.fixture(scope="session")
+def yaml_parser():
+    """Return a YamlParser instance."""
+    from parsers.yaml_parser import YamlParser
+    return YamlParser()
+
+
+@pytest.fixture(scope="session")
+def json_parser():
+    """Return a JsonParser instance."""
+    from parsers.json_parser import JsonParser
+    return JsonParser()
+
+
+# ── Simple config factories ───────────────────────────────────────────────────
 
 @pytest.fixture
-def synthetic_data_dir():
-    return os.path.join(
-        os.path.dirname(__file__), '..', 'data', 'synthetic_configs'
-    )
+def make_env_config(env_parser):
+    """
+    Factory fixture: returns a function that parses raw .env text.
+
+    Usage:
+        def test_something(make_env_config):
+            config = make_env_config("DATABASE_PASSWORD=admin123\\n")
+            assert config.is_valid
+    """
+    def _make(content: str, filename: str = "test.env"):
+        return env_parser.parse(content, filename)
+    return _make
+
 
 @pytest.fixture
-def rules_dir():
-    return os.path.join(
-        os.path.dirname(__file__), '..', 'data', 'rules_catalog'
-    )
+def make_yaml_config(yaml_parser):
+    """Factory fixture for YAML config objects."""
+    def _make(content: str, filename: str = "test.yaml"):
+        return yaml_parser.parse(content, filename)
+    return _make
+
 
 @pytest.fixture
-def templates_dir():
-    return os.path.join(
-        os.path.dirname(__file__), '..', 'data', 'templates_catalog'
-    )
+def make_json_config(json_parser):
+    """Factory fixture for JSON config objects."""
+    def _make(content: str, filename: str = "test.json"):
+        return json_parser.parse(content, filename)
+    return _make
+
+
+# ── Issue / Fix helper ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def make_issue():
+    """
+    Factory fixture: creates a minimal SecurityIssue for testing.
+
+    Usage:
+        def test_blue_team(make_issue):
+            issue = make_issue("CRED-001", "DATABASE_PASSWORD=admin123")
+            ...
+    """
+    def _make(
+        rule_id: str,
+        vulnerable_code: str,
+        severity: str = "high",
+        line_number: int = 1,
+        category: str = "credentials",
+        file_name: str = "test.env",
+        template_id: str = None,
+    ):
+        from models.issue_model import SecurityIssue
+        from models.risk_model import RiskProfile
+
+        rp = RiskProfile(
+            base_severity=7.5,
+            exploitability=0.8,
+            impact_confidentiality="high",
+            impact_integrity="medium",
+            impact_availability="low",
+            likelihood_mean=0.70,
+            likelihood_std=0.15,
+        )
+
+        # Derive template_id from rule_id if not given
+        if template_id is None:
+            prefix = rule_id.split("-")[0]   # e.g. CRED, ENC, AC
+            num    = rule_id.split("-")[-1]  # e.g. 001
+            template_id = f"{prefix}-FIX-{num}"
+
+        return SecurityIssue(
+            issue_id=f"test-{rule_id}",
+            rule_id=rule_id,
+            rule_name=f"Test rule {rule_id}",
+            category=category,
+            severity=severity,
+            cvss_score=7.5,
+            title=f"Test issue {rule_id}",
+            description="Synthetic test issue.",
+            file_name=file_name,
+            line_number=line_number,
+            vulnerable_code=vulnerable_code,
+            risk_profile=rp,
+            remediation_hint="Fix this vulnerability.",
+            template_id=template_id,
+            nist_function="PROTECT",
+            nist_category="PR.AC-1",
+            cwe_id="CWE-798",
+        )
+
+    return _make
+
+
+# ── Analyzer fixture ──────────────────────────────────────────────────────────
+
+@pytest.fixture(scope="session")
+def analyzer(rules_dir):
+    """Return a RedTeamAnalyzer loaded with the real rule catalog."""
+    from core.red_team.analyzer import RedTeamAnalyzer
+    return RedTeamAnalyzer(rules_dir=rules_dir)
+
+
+@pytest.fixture(scope="session")
+def remediator(templates_dir):
+    """Return a BlueTeamRemediator loaded with the real template catalog."""
+    from core.blue_team.remediator import BlueTeamRemediator
+    return BlueTeamRemediator(templates_dir=templates_dir)
+
+
+@pytest.fixture(scope="session")
+def simulator():
+    """Return a MonteCarloSimulator with a small iteration count for fast tests."""
+    from core.simulation.monte_carlo import MonteCarloSimulator
+    return MonteCarloSimulator(iterations=500, seed=42)

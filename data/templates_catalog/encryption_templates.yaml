@@ -1,189 +1,222 @@
+# ============================================================
+# Encryption Fix Templates
+# Maps to rules: ENC-001 to ENC-005
+# ============================================================
+
 templates:
 
   - id: ENC-FIX-001
-    name: "Weak Cipher Algorithm Replacement"
+    name: "Replace Weak Encryption Algorithm"
     category: encryption
     applies_to:
       - ENC-001
+
     fix_strategy: configuration_change
-    description: "Replace weak/deprecated cipher algorithm with AES-256"
-    fix_template: "{original_key}=AES-256-GCM"
-    variables: []
-    explanation: |
-      Algorithms such as DES, 3DES, RC4, and MD5 are cryptographically broken
-      or deprecated. Replace with AES-256-GCM which provides authenticated
-      encryption and is the current industry standard.
+
+    fix_template: "{{original_key}}=AES-256-GCM"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The encryption algorithm config key"
+
+    explanation: >
+      The weak or deprecated encryption algorithm (MD5, SHA1, DES, RC4, 3DES) has been
+      replaced with AES-256-GCM, which is the current industry standard for symmetric
+      encryption. AES-256-GCM provides both confidentiality and integrity.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.85
+      priority: high
+      effort: medium
+
+    side_effects:
+      - "Changing the encryption algorithm requires re-encrypting any existing encrypted data."
+      - "Ensure all application code that performs encryption/decryption is updated to match."
+
+    breaking_change: true
+
+    validation:
+      - type: regex
+        pattern: 'AES'
+        description: "Must use AES-based algorithm"
+
+    test_cases:
+      - input:
+          original_key: "ENCRYPTION_ALGORITHM"
+          original_value: "MD5"
+        expected_output: "ENCRYPTION_ALGORITHM=AES-256-GCM"
+
+  - id: ENC-FIX-002
+    name: "Enable TLS Certificate Verification"
+    category: encryption
+    applies_to:
+      - ENC-002
+
+    fix_strategy: configuration_change
+
+    fix_template: "{{original_key}}=true"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The TLS verification config key"
+
+    explanation: >
+      TLS certificate verification has been re-enabled. Disabling verification (SSL_VERIFY=false)
+      exposes your application to man-in-the-middle attacks. If you were disabling this to work
+      with self-signed certificates in development, use a proper CA or add the certificate to
+      your trust store instead.
+
     metadata:
       auto_fixable: true
       fix_confidence: 0.90
       priority: high
-      effort: medium
-    side_effects:
-      - "All data encrypted with the old algorithm must be re-encrypted"
-      - "Client applications must support AES-256-GCM"
-      - "Test thoroughly before deploying to production"
-    breaking_change: true
-    validation:
-      - type: regex
-        pattern: 'AES-256'
-        description: "Must use AES-256 based algorithm"
-    test_cases:
-      - input:
-          original_key: "CIPHER_ALGORITHM"
-          original_value: "DES"
-        expected_output: "CIPHER_ALGORITHM=AES-256-GCM"
-      - input:
-          original_key: "ENCRYPTION_ALGO"
-          original_value: "RC4"
-        expected_output: "ENCRYPTION_ALGO=AES-256-GCM"
-
-  - id: ENC-FIX-002
-    name: "SSL/TLS Version Upgrade"
-    category: encryption
-    applies_to:
-      - ENC-002
-    fix_strategy: configuration_change
-    description: "Upgrade SSL/TLS version to TLS 1.2 or higher"
-    fix_template: "{original_key}=TLSv1.2"
-    variables:
-      - name: tls_version
-        type: string
-        default: "TLSv1.2"
-        description: "Minimum TLS version to enforce (TLSv1.2 or TLSv1.3)"
-    explanation: |
-      SSLv2, SSLv3, TLS 1.0, and TLS 1.1 are deprecated and vulnerable to
-      known attacks (POODLE, BEAST, etc.). Enforce a minimum of TLS 1.2,
-      preferably TLS 1.3 for new deployments.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.92
-      priority: high
       effort: low
-    side_effects:
-      - "Clients using older TLS versions will be unable to connect"
-      - "Verify all client applications support TLS 1.2+"
-    breaking_change: true
-    validation:
-      - type: regex
-        pattern: 'TLSv1\.[23]'
-        description: "Must specify TLS 1.2 or TLS 1.3"
-    test_cases:
-      - input:
-          original_key: "SSL_VERSION"
-          original_value: "SSLv3"
-        expected_output: "SSL_VERSION=TLSv1.2"
-      - input:
-          original_key: "TLS_MIN_VERSION"
-          original_value: "TLSv1.0"
-        expected_output: "TLS_MIN_VERSION=TLSv1.2"
 
-  - id: ENC-FIX-003
-    name: "SSL Certificate Verification Enable"
-    category: encryption
-    applies_to:
-      - ENC-003
-    fix_strategy: configuration_change
-    description: "Enable SSL certificate verification"
-    fix_template: "{original_key}=true"
-    variables: []
-    explanation: |
-      Disabling SSL certificate verification removes protection against
-      man-in-the-middle attacks. Always enable certificate verification
-      in production environments. Use proper CA certificates instead.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.95
-      priority: high
-      effort: low
     side_effects:
-      - "Ensure a valid SSL certificate is installed and trusted"
-      - "Update any self-signed certificates to CA-signed certificates"
-      - "Local development environments may need additional CA certificate configuration"
+      - "If using self-signed certificates, add them to your CA bundle instead of disabling verification."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: '^(true|True|TRUE|1|yes|Yes)$'
-        description: "SSL verification must be enabled (true)"
+        pattern: '=true'
+        description: "TLS verification must be enabled (true)"
+
     test_cases:
       - input:
           original_key: "SSL_VERIFY"
           original_value: "false"
         expected_output: "SSL_VERIFY=true"
+
+  - id: ENC-FIX-003
+    name: "Enforce Minimum TLS Version"
+    category: encryption
+    applies_to:
+      - ENC-003
+
+    fix_strategy: configuration_change
+
+    fix_template: "{{original_key}}=TLSv1.3"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The TLS version config key"
+
+    explanation: >
+      The TLS version has been updated to TLSv1.3, the current recommended minimum.
+      TLSv1.0 and TLSv1.1 are deprecated and have known vulnerabilities (BEAST, POODLE).
+      TLSv1.2 is acceptable but TLSv1.3 offers improved security and performance.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.85
+      priority: high
+      effort: low
+
+    side_effects:
+      - "Older clients that don't support TLSv1.3 will be unable to connect."
+      - "Test with all expected client types before deploying to production."
+
+    breaking_change: true
+
+    validation:
+      - type: regex
+        pattern: 'TLSv1\.[23]'
+        description: "Must use TLSv1.2 or higher"
+
+    test_cases:
       - input:
-          original_key: "VERIFY_SSL"
-          original_value: "0"
-        expected_output: "VERIFY_SSL=true"
+          original_key: "TLS_VERSION"
+          original_value: "TLSv1.0"
+        expected_output: "TLS_VERSION=TLSv1.3"
 
   - id: ENC-FIX-004
-    name: "Weak Hash Algorithm Replacement"
+    name: "Remove Hard-coded Encryption Key"
     category: encryption
     applies_to:
       - ENC-004
-    fix_strategy: configuration_change
-    description: "Replace weak hash algorithm (MD5/SHA1) with SHA-256 or higher"
-    fix_template: "{original_key}=SHA-256"
-    variables: []
-    explanation: |
-      MD5 and SHA-1 are cryptographically broken and should not be used for
-      security-sensitive operations. Replace with SHA-256 or SHA-3 for
-      hashing operations, or bcrypt/argon2 for password hashing.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.88
-      priority: high
-      effort: medium
-    side_effects:
-      - "Existing hashes stored with MD5/SHA1 will need to be rehashed"
-      - "Update any systems that verify these hashes"
-    breaking_change: true
-    validation:
-      - type: regex
-        pattern: 'SHA-2(56|84|512)|SHA3'
-        description: "Must use SHA-256 or stronger"
-    test_cases:
-      - input:
-          original_key: "HASH_ALGORITHM"
-          original_value: "MD5"
-        expected_output: "HASH_ALGORITHM=SHA-256"
-      - input:
-          original_key: "DIGEST_METHOD"
-          original_value: "SHA1"
-        expected_output: "DIGEST_METHOD=SHA-256"
 
-  - id: ENC-FIX-005
-    name: "Encryption Key Environment Variable"
-    category: encryption
-    applies_to:
-      - ENC-005
     fix_strategy: template_replacement
-    description: "Move hard-coded encryption key to environment variable"
-    fix_template: "{original_key}=${{{env_var_name}}}"
+
+    fix_template: "{{original_key}}=${{{original_key}}}"
+
     variables:
-      - name: env_var_name
+      - name: original_key
         type: string
-        default: "{original_key}"
-        description: "Name of the environment variable to reference"
-    explanation: |
-      Encryption keys embedded directly in configuration files are accessible
-      to anyone with file system access or version control access. Store keys
-      as environment variables or in a dedicated secrets management system.
+        description: "The encryption key config name"
+
+    explanation: >
+      The hard-coded encryption key has been replaced with an environment variable reference.
+      Encryption keys must never be stored in source code or configuration files committed to
+      version control. Use a key management service (AWS KMS, HashiCorp Vault, Azure Key Vault)
+      to manage cryptographic keys securely.
+
     metadata:
       auto_fixable: true
       fix_confidence: 0.95
       priority: immediate
       effort: low
+
     side_effects:
-      - "Generate a new, cryptographically secure encryption key"
-      - "Rotate any data encrypted with the old key"
-      - "Use a key management service (KMS) for production environments"
+      - "Existing encrypted data cannot be decrypted after key rotation without migration."
+      - "Plan a key rotation strategy before implementing."
+
     breaking_change: true
+
     validation:
       - type: regex
-        pattern: '^\S+=\$\{\S+\}$'
-        description: "Value must use environment variable reference format"
+        pattern: '=\$\{'
+        description: "Must use environment variable reference"
+
     test_cases:
       - input:
           original_key: "ENCRYPTION_KEY"
-          original_value: "hardcodedkey12345"
-          env_var_name: "ENCRYPTION_KEY"
+          original_value: "mysecretkey12345"
         expected_output: "ENCRYPTION_KEY=${ENCRYPTION_KEY}"
+
+  - id: ENC-FIX-005
+    name: "Enable HTTPS / Enforce Secure Transport"
+    category: encryption
+    applies_to:
+      - ENC-005
+
+    fix_strategy: configuration_change
+
+    fix_template: "{{original_key}}=https"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The protocol or scheme config key"
+
+    explanation: >
+      The insecure HTTP protocol has been replaced with HTTPS. All production traffic
+      should be encrypted in transit. Configure an SSL/TLS certificate (e.g. via Let's Encrypt)
+      and enable HTTPS redirects to prevent plain-text data transmission.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.80
+      priority: high
+      effort: medium
+
+    side_effects:
+      - "Requires a valid SSL/TLS certificate configured on the server."
+      - "Update any hard-coded URLs in your application from http:// to https://."
+
+    breaking_change: false
+
+    validation:
+      - type: regex
+        pattern: 'https'
+        description: "Must use HTTPS"
+
+    test_cases:
+      - input:
+          original_key: "APP_PROTOCOL"
+          original_value: "http"
+        expected_output: "APP_PROTOCOL=https"

@@ -1,179 +1,223 @@
+# ============================================================
+# Access Control Fix Templates
+# Maps to rules: AC-001 to AC-005
+# ============================================================
+
 templates:
 
   - id: AC-FIX-001
-    name: "Restrictive CORS Origin"
+    name: "Restrict CORS Origins"
     category: access_control
     applies_to:
       - AC-001
+
     fix_strategy: configuration_change
-    description: "Replace wildcard CORS origin with specific allowed origins"
-    fix_template: "{original_key}=${{{env_var_name}}}"
+
+    fix_template: "{{original_key}}=${{{original_key}_ORIGINS}}"
+
     variables:
-      - name: env_var_name
+      - name: original_key
         type: string
-        default: "ALLOWED_ORIGINS"
-        description: "Environment variable containing comma-separated allowed origins"
-    explanation: |
-      CORS wildcard (*) allows any origin to make cross-origin requests,
-      enabling cross-site request forgery and data theft. Replace with an
-      explicit list of trusted origins stored as an environment variable.
+        description: "The CORS origins config key"
+
+    explanation: >
+      The wildcard CORS origin (*) has been replaced with an environment variable
+      reference for specific allowed origins. In production, always specify exact
+      domains (e.g. https://app.example.com) rather than allowing all origins.
+      This prevents cross-origin attacks from malicious websites.
+
     metadata:
-      auto_fixable: true
-      fix_confidence: 0.85
+      auto_fixable: false
+      fix_confidence: 0.80
       priority: high
       effort: medium
+
     side_effects:
-      - "Define ALLOWED_ORIGINS with specific trusted domains"
-      - "Test all frontend applications to confirm they are included"
-      - "Update the variable when new trusted origins are added"
+      - "You must set the CORS_ORIGINS variable to a comma-separated list of allowed domains."
+      - "Test all legitimate frontend origins are included."
+
     breaking_change: true
+
     validation:
-      - type: not_contains
-        value: "*"
-        description: "Must not use wildcard (*) for CORS origin"
+      - type: regex
+        pattern: '=\$\{'
+        description: "Must use environment variable reference for origins"
+
     test_cases:
       - input:
-          original_key: "CORS_ORIGIN"
+          original_key: "CORS_ORIGINS"
           original_value: "*"
-          env_var_name: "ALLOWED_ORIGINS"
-        expected_output: "CORS_ORIGIN=${ALLOWED_ORIGINS}"
+        expected_output: "CORS_ORIGINS=${CORS_ORIGINS_ORIGINS}"
 
   - id: AC-FIX-002
-    name: "Debug Mode Disable"
+    name: "Restrict Allowed Hosts"
     category: access_control
     applies_to:
       - AC-002
-    fix_strategy: configuration_change
-    description: "Disable debug mode in production configuration"
-    fix_template: "{original_key}=false"
-    variables: []
-    explanation: |
-      Debug mode exposes stack traces, internal configuration, and detailed
-      error messages to end users, providing attackers with valuable
-      reconnaissance information. Always disable debug mode in production.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.98
-      priority: high
-      effort: low
-    side_effects:
-      - "Ensure proper error logging is configured separately"
-      - "Verify application behaves correctly without debug output"
-    breaking_change: false
-    validation:
-      - type: regex
-        pattern: '^(false|False|FALSE|0|no|No)$'
-        description: "Debug mode must be disabled (false/0)"
-    test_cases:
-      - input:
-          original_key: "DEBUG"
-          original_value: "true"
-        expected_output: "DEBUG=false"
-      - input:
-          original_key: "APP_DEBUG"
-          original_value: "1"
-        expected_output: "APP_DEBUG=false"
 
-  - id: AC-FIX-003
-    name: "Permissive File Permission Restriction"
-    category: access_control
-    applies_to:
-      - AC-003
-    fix_strategy: configuration_change
-    description: "Replace world-writable/readable file permissions with restrictive values"
-    fix_template: "{original_key}=0640"
+    fix_strategy: template_replacement
+
+    fix_template: "{{original_key}}=${{{original_key}}}"
+
     variables:
-      - name: permission_value
+      - name: original_key
         type: string
-        default: "0640"
-        description: "Restrictive permission value (owner read/write, group read only)"
-    explanation: |
-      World-readable or world-writable file permissions (0777, 0666, 0644 for
-      sensitive files) allow unauthorized users to read or modify critical files.
-      Use 0640 (owner rw, group r) or stricter for configuration files.
+        description: "The allowed hosts config key"
+
+    explanation: >
+      The unrestricted allowed hosts setting has been replaced with an environment
+      variable reference. Set ALLOWED_HOSTS to a comma-separated list of your
+      specific domain names (e.g. example.com,www.example.com).
+      Unrestricted host settings are vulnerable to HTTP Host header attacks.
+
     metadata:
       auto_fixable: true
       fix_confidence: 0.85
-      priority: medium
+      priority: high
       effort: low
+
     side_effects:
-      - "Verify the application process user has appropriate access"
-      - "Check group membership is correctly configured"
+      - "Ensure all legitimate hostnames are included in the ALLOWED_HOSTS variable."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: '^0[46][04]0$'
-        description: "Permission must be restrictive (0640, 0600, or 0400)"
+        pattern: '=\$\{'
+        description: "Must use environment variable reference"
+
     test_cases:
       - input:
-          original_key: "FILE_PERMISSIONS"
-          original_value: "0777"
-        expected_output: "FILE_PERMISSIONS=0640"
+          original_key: "ALLOWED_HOSTS"
+          original_value: "*"
+        expected_output: "ALLOWED_HOSTS=${ALLOWED_HOSTS}"
 
-  - id: AC-FIX-004
-    name: "Admin Interface Binding Restriction"
+  - id: AC-FIX-003
+    name: "Restrict File Permissions"
     category: access_control
     applies_to:
-      - AC-004
+      - AC-003
+
     fix_strategy: configuration_change
-    description: "Bind admin interface to localhost instead of all interfaces"
-    fix_template: "{original_key}=127.0.0.1"
-    variables: []
-    explanation: |
-      Binding admin interfaces to 0.0.0.0 exposes them on all network interfaces,
-      making them accessible from external networks. Restrict to 127.0.0.1
-      (localhost) and use a VPN or SSH tunnel for remote administration.
+
+    fix_template: "{{original_key}}=0644"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The file permissions config key"
+
+    explanation: >
+      World-writable permissions (0777) have been replaced with secure permissions (0644
+      for files, 0755 for directories). World-writable files allow any user on the system
+      to modify them, which can lead to privilege escalation or data tampering.
+
     metadata:
       auto_fixable: true
       fix_confidence: 0.90
       priority: high
       effort: low
+
     side_effects:
-      - "Remote admin access will require VPN or SSH tunnel"
-      - "Notify administrators of the access method change"
-    breaking_change: true
+      - "Verify that no application processes require write access that would be removed."
+
+    breaking_change: false
+
     validation:
-      - type: not_contains
-        value: "0.0.0.0"
-        description: "Must not bind to all interfaces"
+      - type: regex
+        pattern: '0[4-7][0-4][0-4]'
+        description: "Must use restrictive permission mask"
+
     test_cases:
       - input:
-          original_key: "ADMIN_HOST"
-          original_value: "0.0.0.0"
-        expected_output: "ADMIN_HOST=127.0.0.1"
+          original_key: "FILE_MODE"
+          original_value: "0777"
+        expected_output: "FILE_MODE=0644"
+
+  - id: AC-FIX-004
+    name: "Replace Default Admin Credentials"
+    category: access_control
+    applies_to:
+      - AC-004
+
+    fix_strategy: template_replacement
+
+    fix_template: "{{original_key}}=${{{original_key}}}"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The admin credential config key"
+
+    explanation: >
+      Default or weak admin credentials have been replaced with an environment variable
+      reference. Default credentials (admin/admin, root/password) are the first thing
+      attackers try. Generate a strong random password and store it in your secrets manager.
+      Never use default credentials in any environment.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.95
+      priority: immediate
+      effort: low
+
+    side_effects:
+      - "Update all team members who may know the current default credentials."
+      - "Check if default credentials exist in any database or service configurations."
+
+    breaking_change: false
+
+    validation:
+      - type: regex
+        pattern: '=\$\{'
+        description: "Must use environment variable reference"
+
+    test_cases:
+      - input:
+          original_key: "ADMIN_PASSWORD"
+          original_value: "admin"
+        expected_output: "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
 
   - id: AC-FIX-005
-    name: "Insecure HTTP to HTTPS"
+    name: "Secure Session Configuration"
     category: access_control
     applies_to:
       - AC-005
+
     fix_strategy: configuration_change
-    description: "Replace HTTP with HTTPS for all URL configurations"
-    fix_template: "{original_key}={https_url}"
+
+    fix_template: "{{original_key}}=true"
+
     variables:
-      - name: https_url
+      - name: original_key
         type: string
-        default: "{original_value_with_https}"
-        description: "The URL with http:// replaced by https://"
-    explanation: |
-      Using HTTP instead of HTTPS transmits data in plain text, exposing it to
-      interception. All URLs in configuration should use HTTPS to ensure
-      data is encrypted in transit.
+        description: "The session security config key (e.g. SESSION_COOKIE_SECURE)"
+
+    explanation: >
+      Session security flags (HttpOnly, Secure, SameSite) have been enabled.
+      These flags protect session cookies from XSS attacks (HttpOnly prevents
+      JavaScript access), transmission over HTTP (Secure requires HTTPS), and
+      CSRF attacks (SameSite=Strict or Lax).
+
     metadata:
       auto_fixable: true
-      fix_confidence: 0.88
+      fix_confidence: 0.85
       priority: high
       effort: low
+
     side_effects:
-      - "Ensure the target server has a valid SSL certificate"
-      - "Update firewall rules if port 443 is not already open"
+      - "SESSION_COOKIE_SECURE=true requires HTTPS to be configured."
+      - "Users with existing insecure sessions will need to re-authenticate."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: 'https://'
-        description: "URL must use HTTPS protocol"
+        pattern: '=true'
+        description: "Security flag must be enabled"
+
     test_cases:
       - input:
-          original_key: "API_URL"
-          original_value: "http://api.example.com"
-        expected_output: "API_URL=https://api.example.com"
+          original_key: "SESSION_COOKIE_SECURE"
+          original_value: "false"
+        expected_output: "SESSION_COOKIE_SECURE=true"

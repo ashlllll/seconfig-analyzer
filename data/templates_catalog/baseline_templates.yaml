@@ -1,195 +1,224 @@
+# ============================================================
+# Baseline Security Fix Templates
+# Maps to rules: BASE-001 to BASE-005
+# ============================================================
+
 templates:
 
   - id: BASE-FIX-001
-    name: "Disable Development/Test Mode"
+    name: "Disable Debug Mode in Production"
     category: baseline
     applies_to:
       - BASE-001
+
     fix_strategy: configuration_change
-    description: "Disable development, test, or maintenance mode flags"
-    fix_template: "{original_key}=false"
-    variables: []
-    explanation: |
-      Development or test mode flags often bypass authentication, disable
-      security checks, expose additional endpoints, or display verbose error
-      messages. These must always be disabled in production environments.
+
+    fix_template: "{{original_key}}=false"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The debug mode config key"
+
+    explanation: >
+      Debug mode has been disabled. Running with DEBUG=true in production exposes
+      detailed error messages, stack traces, and internal application state to users,
+      which attackers can use to identify vulnerabilities. Always disable debug mode
+      before deploying to any environment accessible outside your development machine.
+
     metadata:
       auto_fixable: true
-      fix_confidence: 0.97
-      priority: high
+      fix_confidence: 0.98
+      priority: immediate
       effort: low
+
     side_effects:
-      - "Verify all production-specific configurations are active"
-      - "Ensure error handling is configured for production use"
+      - "Generic error pages will be shown to users instead of detailed tracebacks."
+      - "Ensure your application handles errors gracefully for end users."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: '^(false|False|FALSE|0|no|No|off|Off)$'
-        description: "Development/test mode must be disabled"
+        pattern: '=false'
+        description: "Debug mode must be false"
+
     test_cases:
       - input:
-          original_key: "TESTING"
+          original_key: "DEBUG"
           original_value: "true"
-        expected_output: "TESTING=false"
-      - input:
-          original_key: "DEV_MODE"
-          original_value: "1"
-        expected_output: "DEV_MODE=false"
+        expected_output: "DEBUG=false"
 
   - id: BASE-FIX-002
-    name: "Set Secure Session Timeout"
+    name: "Set Secure Environment Mode"
     category: baseline
     applies_to:
       - BASE-002
+
     fix_strategy: configuration_change
-    description: "Set session timeout to a secure value (1800 seconds / 30 minutes)"
-    fix_template: "{original_key}=1800"
+
+    fix_template: "{{original_key}}=production"
+
     variables:
-      - name: timeout_seconds
-        type: integer
-        default: 1800
-        description: "Session timeout in seconds (1800 = 30 minutes recommended)"
-    explanation: |
-      Excessively long session timeouts (or no timeout) allow attackers to
-      hijack idle sessions. The recommended maximum session lifetime is 30
-      minutes (1800 seconds) for sensitive applications, or up to 8 hours
-      (28800 seconds) for lower-sensitivity applications.
+      - name: original_key
+        type: string
+        description: "The environment/mode config key"
+
+    explanation: >
+      The environment has been set to 'production'. Running with APP_ENV=development
+      or APP_ENV=test often enables extra logging, disables security checks, and
+      exposes debugging endpoints. Always explicitly set your environment to 'production'
+      to ensure all security hardening is active.
+
     metadata:
       auto_fixable: true
-      fix_confidence: 0.85
-      priority: medium
+      fix_confidence: 0.95
+      priority: high
       effort: low
+
     side_effects:
-      - "Users will be logged out after 30 minutes of inactivity"
-      - "Implement session renewal for active users to avoid disruption"
+      - "Verify that production mode does not disable features your application requires."
+
     breaking_change: false
+
     validation:
-      - type: range
-        min: 300
-        max: 28800
-        description: "Session timeout must be between 5 minutes and 8 hours"
+      - type: regex
+        pattern: '=production'
+        description: "Environment must be set to production"
+
     test_cases:
       - input:
-          original_key: "SESSION_TIMEOUT"
-          original_value: "0"
-        expected_output: "SESSION_TIMEOUT=1800"
-      - input:
-          original_key: "SESSION_LIFETIME"
-          original_value: "999999"
-        expected_output: "SESSION_LIFETIME=1800"
+          original_key: "APP_ENV"
+          original_value: "development"
+        expected_output: "APP_ENV=production"
 
   - id: BASE-FIX-003
-    name: "Enable HTTPS/Secure Mode"
+    name: "Set Strong Content Security Policy"
     category: baseline
     applies_to:
       - BASE-003
+
     fix_strategy: configuration_change
-    description: "Enable HTTPS or secure communication mode"
-    fix_template: "{original_key}=true"
-    variables: []
-    explanation: |
-      Applications running without HTTPS transmit data including credentials
-      and session tokens in plain text. Enable secure mode to enforce HTTPS
-      and protect data in transit from interception and tampering.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.92
-      priority: high
-      effort: medium
-    side_effects:
-      - "Obtain and install a valid SSL/TLS certificate"
-      - "Configure HTTP to HTTPS redirect"
-      - "Update all internal service URLs to use HTTPS"
-    breaking_change: false
-    validation:
-      - type: regex
-        pattern: '^(true|True|TRUE|1|yes|Yes|enabled|https)$'
-        description: "Secure/HTTPS mode must be enabled"
-    test_cases:
-      - input:
-          original_key: "SECURE"
-          original_value: "false"
-        expected_output: "SECURE=true"
-      - input:
-          original_key: "USE_HTTPS"
-          original_value: "0"
-        expected_output: "USE_HTTPS=true"
 
-  - id: BASE-FIX-004
-    name: "Restrict Allowed Hosts"
-    category: baseline
-    applies_to:
-      - BASE-004
-    fix_strategy: template_replacement
-    description: "Replace wildcard allowed hosts with explicit hostname list"
-    fix_template: "{original_key}=${{{env_var_name}}}"
+    fix_template: "{{original_key}}=default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+
     variables:
-      - name: env_var_name
+      - name: original_key
         type: string
-        default: "ALLOWED_HOSTS"
-        description: "Environment variable containing comma-separated allowed hostnames"
-    explanation: |
-      Wildcard (*) in ALLOWED_HOSTS disables host header validation, making
-      the application vulnerable to HTTP Host header attacks. Specify only
-      the exact hostnames that should be served by the application.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.88
-      priority: medium
-      effort: low
-    side_effects:
-      - "Set ALLOWED_HOSTS to the actual domain names of the application"
-      - "Include all valid hostnames including www and non-www variants"
-    breaking_change: true
-    validation:
-      - type: not_contains
-        value: "*"
-        description: "Must not use wildcard for allowed hosts"
-    test_cases:
-      - input:
-          original_key: "ALLOWED_HOSTS"
-          original_value: "*"
-          env_var_name: "ALLOWED_HOSTS"
-        expected_output: "ALLOWED_HOSTS=${ALLOWED_HOSTS}"
+        description: "The CSP config key"
 
-  - id: BASE-FIX-005
-    name: "Set Secure Database Port"
-    category: baseline
-    applies_to:
-      - BASE-005
-    fix_strategy: manual_guidance
-    description: "Guidance for securing exposed database ports and connections"
-    fix_template: ""
-    variables: []
-    explanation: |
-      Database services (MySQL 3306, PostgreSQL 5432, MongoDB 27017, Redis 6379)
-      should never be exposed on public network interfaces. Bind database
-      services to localhost (127.0.0.1) only and use encrypted tunnels or
-      VPN for remote access. This requires server-level configuration changes.
+    explanation: >
+      The Content Security Policy has been tightened from 'unsafe-inline' or wildcard
+      to a restrictive default. CSP prevents XSS attacks by controlling which resources
+      browsers are allowed to load. Start with 'default-src self' and progressively
+      allow only the specific sources your application requires.
+
     metadata:
       auto_fixable: false
       fix_confidence: 0.70
-      priority: high
+      priority: medium
       effort: high
+
     side_effects:
-      - "Remote database connections will require VPN or SSH tunnel"
-      - "Update connection strings in all applications"
-      - "Review firewall rules to block external database port access"
+      - "A restrictive CSP may break existing inline scripts and styles — audit your frontend code first."
+      - "Use Content-Security-Policy-Report-Only header to test before enforcing."
+
     breaking_change: true
-    manual_steps:
-      - step: 1
-        action: "Edit database server configuration to bind to 127.0.0.1 only"
-        example: "MySQL: bind-address = 127.0.0.1 in my.cnf"
-      - step: 2
-        action: "Restart the database service to apply changes"
-      - step: 3
-        action: "Update firewall rules to block external access to database ports"
-        example: "iptables -A INPUT -p tcp --dport 3306 -j DROP"
-      - step: 4
-        action: "Configure SSH tunneling for legitimate remote database access"
-      - step: 5
-        action: "Update the DB_HOST in your configuration to 127.0.0.1"
+
     validation:
-      - type: manual
-        description: "Verify database is not accessible from external networks"
-    test_cases: []
+      - type: regex
+        pattern: "default-src"
+        description: "CSP must include a default-src directive"
+
+    test_cases:
+      - input:
+          original_key: "CONTENT_SECURITY_POLICY"
+          original_value: "unsafe-inline"
+        expected_output: "CONTENT_SECURITY_POLICY=default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+
+  - id: BASE-FIX-004
+    name: "Enable Security Headers"
+    category: baseline
+    applies_to:
+      - BASE-004
+
+    fix_strategy: configuration_change
+
+    fix_template: "{{original_key}}=true"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The security headers config key"
+
+    explanation: >
+      Security headers (X-Frame-Options, X-Content-Type-Options, HSTS, etc.) have
+      been enabled. These HTTP response headers defend against common web attacks:
+      clickjacking, MIME type sniffing, and protocol downgrade attacks.
+      They are a low-effort, high-impact security baseline.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.90
+      priority: medium
+      effort: low
+
+    side_effects:
+      - "HSTS (Strict-Transport-Security) will prevent HTTP fallback — ensure HTTPS is stable first."
+
+    breaking_change: false
+
+    validation:
+      - type: regex
+        pattern: '=true'
+        description: "Security headers must be enabled"
+
+    test_cases:
+      - input:
+          original_key: "SECURITY_HEADERS_ENABLED"
+          original_value: "false"
+        expected_output: "SECURITY_HEADERS_ENABLED=true"
+
+  - id: BASE-FIX-005
+    name: "Remove Exposed Internal Endpoint"
+    category: baseline
+    applies_to:
+      - BASE-005
+
+    fix_strategy: manual_guidance
+
+    fix_template: "# {{original_key}} — move to environment variable and restrict access\n{{original_key}}=${{{original_key}}}"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The internal endpoint config key"
+
+    explanation: >
+      The internal or admin endpoint URL has been flagged for review. Exposed internal
+      endpoints (admin panels, metrics, health checks) should be restricted to internal
+      networks or require authentication. Use environment variables for URLs and implement
+      IP allowlisting or authentication middleware to protect these endpoints.
+
+    metadata:
+      auto_fixable: false
+      fix_confidence: 0.75
+      priority: medium
+      effort: medium
+
+    side_effects:
+      - "Restricting the endpoint may require network configuration changes."
+      - "Ensure monitoring/alerting systems can still reach health check endpoints."
+
+    breaking_change: false
+
+    validation:
+      - type: regex
+        pattern: '=\$\{'
+        description: "Endpoint must be configurable via environment variable"
+
+    test_cases:
+      - input:
+          original_key: "ADMIN_URL"
+          original_value: "http://0.0.0.0:8080/admin"
+        expected_output: "# ADMIN_URL — move to environment variable and restrict access\nADMIN_URL=${ADMIN_URL}"

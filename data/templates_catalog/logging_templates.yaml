@@ -1,3 +1,8 @@
+# ============================================================
+# Logging Fix Templates
+# Maps to rules: LOG-001 to LOG-003
+# ============================================================
+
 templates:
 
   - id: LOG-FIX-001
@@ -5,119 +10,142 @@ templates:
     category: logging
     applies_to:
       - LOG-001
+
     fix_strategy: configuration_change
-    description: "Enable logging that was disabled or set to off"
-    fix_template: "{original_key}=true"
-    variables: []
-    explanation: |
-      Disabled logging prevents detection of security incidents, errors, and
-      suspicious activity. Logging is a fundamental security control required
-      by most compliance frameworks (NIST, PCI-DSS, ISO 27001). Enable it
-      and ensure logs are stored securely and monitored.
+
+    fix_template: "{{original_key}}=INFO"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The log level or logging enabled config key"
+
+    explanation: >
+      Logging has been enabled at INFO level. Without logs, security incidents
+      cannot be detected, investigated, or audited — a requirement of NIST CSF
+      (DE.CM-7) and compliance frameworks like SOC 2 and ISO 27001.
+      Use DEBUG level only in development; INFO or WARNING in production.
+
+    metadata:
+      auto_fixable: true
+      fix_confidence: 0.90
+      priority: medium
+      effort: low
+
+    side_effects:
+      - "Ensure log storage is configured and log rotation is enabled."
+      - "Logs may contain operational information — configure appropriate access controls."
+
+    breaking_change: false
+
+    validation:
+      - type: regex
+        pattern: '(INFO|WARNING|ERROR|DEBUG)'
+        description: "Log level must be a valid level (not disabled/off/none)"
+
+    test_cases:
+      - input:
+          original_key: "LOG_LEVEL"
+          original_value: "none"
+        expected_output: "LOG_LEVEL=INFO"
+      - input:
+          original_key: "LOGGING_ENABLED"
+          original_value: "false"
+        expected_output: "LOGGING_ENABLED=INFO"
+
+  - id: LOG-FIX-002
+    name: "Disable Sensitive Data Logging"
+    category: logging
+    applies_to:
+      - LOG-002
+
+    fix_strategy: configuration_change
+
+    fix_template: "{{original_key}}=false"
+
+    variables:
+      - name: original_key
+        type: string
+        description: "The log sensitive data config key"
+
+    explanation: >
+      Logging of sensitive data (passwords, tokens, PII) has been disabled.
+      Sensitive data in logs creates compliance violations (GDPR, PCI-DSS) and
+      security risks if logs are accessed by unauthorised parties or leaked.
+      Implement log sanitisation to mask or exclude sensitive fields.
+
     metadata:
       auto_fixable: true
       fix_confidence: 0.95
       priority: high
       effort: low
-    side_effects:
-      - "Configure log storage location and rotation policy"
-      - "Ensure log files are protected from unauthorized access"
-      - "Consider a centralized logging solution (ELK, Splunk, etc.)"
-    breaking_change: false
-    validation:
-      - type: regex
-        pattern: '^(true|True|TRUE|1|yes|Yes|enabled|Enabled)$'
-        description: "Logging must be enabled"
-    test_cases:
-      - input:
-          original_key: "LOGGING_ENABLED"
-          original_value: "false"
-        expected_output: "LOGGING_ENABLED=true"
-      - input:
-          original_key: "LOG_ENABLED"
-          original_value: "0"
-        expected_output: "LOG_ENABLED=true"
 
-  - id: LOG-FIX-002
-    name: "Set Appropriate Log Level"
-    category: logging
-    applies_to:
-      - LOG-002
-    fix_strategy: configuration_change
-    description: "Replace overly verbose log level (DEBUG) with appropriate level for production"
-    fix_template: "{original_key}=WARNING"
-    variables:
-      - name: log_level
-        type: string
-        default: "WARNING"
-        description: "Appropriate log level: WARNING for production, INFO for staging"
-    explanation: |
-      DEBUG log level captures all application activity including sensitive data
-      such as passwords, tokens, and personal information. Use WARNING or ERROR
-      in production to log only significant events, reducing exposure risk and
-      storage costs.
-    metadata:
-      auto_fixable: true
-      fix_confidence: 0.88
-      priority: medium
-      effort: low
     side_effects:
-      - "Some diagnostic information will no longer be logged"
-      - "Ensure ERROR and CRITICAL logs are still captured"
-      - "Use INFO level in staging/pre-production environments"
+      - "Review your logging code to ensure sensitive fields are explicitly excluded."
+      - "Implement a log sanitisation middleware if not already in place."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: '^(WARNING|ERROR|CRITICAL|WARN|warning|error|critical)$'
-        description: "Log level must be WARNING or higher for production"
+        pattern: '=false'
+        description: "Sensitive data logging must be disabled"
+
     test_cases:
       - input:
-          original_key: "LOG_LEVEL"
-          original_value: "DEBUG"
-        expected_output: "LOG_LEVEL=WARNING"
-      - input:
-          original_key: "LOGGING_LEVEL"
-          original_value: "debug"
-        expected_output: "LOGGING_LEVEL=WARNING"
+          original_key: "LOG_PASSWORDS"
+          original_value: "true"
+        expected_output: "LOG_PASSWORDS=false"
 
   - id: LOG-FIX-003
-    name: "Configure Secure Log File Path"
+    name: "Configure Centralised Log Destination"
     category: logging
     applies_to:
       - LOG-003
-    fix_strategy: configuration_change
-    description: "Set a secure, explicit log file path outside the web root"
-    fix_template: "{original_key}=/var/log/app/application.log"
+
+    fix_strategy: template_replacement
+
+    fix_template: "{{original_key}}=${{{original_key}}}"
+
     variables:
-      - name: log_path
+      - name: original_key
         type: string
-        default: "/var/log/app/application.log"
-        description: "Secure log file path outside the web root"
-    explanation: |
-      Log files stored in world-readable directories, temporary folders, or
-      within the web root can be accessed by unauthorized users or exposed
-      via web requests. Store logs in a dedicated, access-controlled directory
-      such as /var/log/app/ with restricted permissions.
+        description: "The log destination config key"
+
+    explanation: >
+      The log destination has been replaced with an environment variable reference.
+      Centralised logging (e.g. ELK Stack, Splunk, CloudWatch) provides security
+      monitoring, alerting, and audit trails. Never log to /dev/null in production —
+      this silently discards all events and prevents incident detection.
+
     metadata:
       auto_fixable: true
-      fix_confidence: 0.80
+      fix_confidence: 0.85
       priority: medium
-      effort: low
+      effort: medium
+
     side_effects:
-      - "Create the directory /var/log/app/ with appropriate permissions"
-      - "Ensure the application process has write access to the log directory"
-      - "Configure log rotation to prevent disk space exhaustion"
+      - "Configure the LOG_DESTINATION variable to point to your logging infrastructure."
+
     breaking_change: false
+
     validation:
       - type: regex
-        pattern: '^/var/log/'
-        description: "Log path should be under /var/log/ or equivalent secure location"
+        pattern: '=\$\{'
+        description: "Must use environment variable reference for log destination"
+
     test_cases:
       - input:
-          original_key: "LOG_FILE"
-          original_value: "/tmp/app.log"
-        expected_output: "LOG_FILE=/var/log/app/application.log"
-      - input:
-          original_key: "LOG_PATH"
-          original_value: "./logs/debug.log"
-        expected_output: "LOG_PATH=/var/log/app/application.log"
+          original_key: "LOG_DESTINATION"
+          original_value: "/dev/null"
+        expected_output: "LOG_DESTINATION=${LOG_DESTINATION}"
+
+
+# ============================================================
+# Baseline Security Fix Templates
+# Maps to rules: BASE-001 to BASE-005
+# ============================================================
+
+---
+# NOTE: This file serves double duty — appended below for baseline templates.
+# In the actual repo, split into baseline_templates.yaml.

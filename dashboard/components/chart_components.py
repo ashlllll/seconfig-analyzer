@@ -1,289 +1,485 @@
 """
-components/chart_components.py
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Plotly chart helpers for SecConfig Analyzer dashboard.
-All charts use the dark terminal colour palette.
-"""
+dashboard/components/chart_components.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Plotly chart factories for the SecConfig Analyzer dashboard.
 
+All functions return go.Figure objects ready for st.plotly_chart().
+Colour palette matches the dark terminal theme in custom.css.
+"""
 from __future__ import annotations
+
+from typing import List, Optional
+import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from typing import Any
 
-# ── Shared theme ──────────────────────────────────────────────────────────────
+# ── Palette (matches custom.css variables) ────────────────────────────────────
 _BG        = "#06090d"
-_PAPER     = "#0c1118"
-_GRID      = "#1a2838"
-_TEXT      = "#6b8299"
-_FONT_MONO = "JetBrains Mono"
+_BG_PANEL  = "#0c1118"
+_BG_CARD   = "#101820"
+_BORDER    = "#1a2838"
+_TEXT      = "#c9d8e8"
+_MUTED     = "#6b8299"
 
-_LAYOUT_BASE = dict(
-    font=dict(family=_FONT_MONO, color=_TEXT, size=11),
-    paper_bgcolor=_PAPER,
-    plot_bgcolor=_BG,
-    margin=dict(l=40, r=20, t=40, b=40),
-    showlegend=True,
-    legend=dict(
-        bgcolor="rgba(0,0,0,0)",
-        bordercolor=_GRID,
-        borderwidth=1,
-        font=dict(size=11),
-    ),
-)
+_RED    = "#f04f47"
+_ORANGE = "#e88c3a"
+_YELLOW = "#d9a83a"
+_GREEN  = "#3dba6e"
+_BLUE   = "#3b8ef3"
+_CYAN   = "#26d4d4"
 
-SEV_COLOURS = {
-    "critical": "#f04f47",
-    "high":     "#e88c3a",
-    "medium":   "#d9a83a",
-    "low":      "#3dba6e",
-    "info":     "#3b8ef3",
+_SEV_COLOURS = {
+    "critical": _RED,
+    "high":     _ORANGE,
+    "medium":   _YELLOW,
+    "low":      _GREEN,
+    "info":     _BLUE,
+}
+
+_CAT_COLOURS = {
+    "credentials":    _RED,
+    "encryption":     _ORANGE,
+    "access_control": _YELLOW,
+    "logging":        _BLUE,
+    "baseline":       _CYAN,
+}
+
+_NIST_COLOURS = {
+    "IDENTIFY": _CYAN,
+    "PROTECT":  _BLUE,
+    "DETECT":   _YELLOW,
+    "RESPOND":  _ORANGE,
+    "RECOVER":  _GREEN,
 }
 
 
-# ── Severity pie / donut ──────────────────────────────────────────────────────
+def _base_layout(height: int = 360) -> dict:
+    """Shared layout defaults for all charts."""
+    return dict(
+        height=height,
+        paper_bgcolor=_BG_CARD,
+        plot_bgcolor=_BG_CARD,
+        font=dict(family="DM Sans, sans-serif", color=_TEXT, size=12),
+        margin=dict(l=40, r=20, t=36, b=40),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            bordercolor=_BORDER,
+            font=dict(size=11),
+        ),
+        xaxis=dict(
+            gridcolor=_BORDER,
+            linecolor=_BORDER,
+            tickfont=dict(color=_MUTED, size=10),
+            title=dict(font=dict(color=_MUTED)),
+        ),
+        yaxis=dict(
+            gridcolor=_BORDER,
+            linecolor=_BORDER,
+            tickfont=dict(color=_MUTED, size=10),
+            title=dict(font=dict(color=_MUTED)),
+        ),
+    )
 
-def severity_donut(severity_counts: dict[str, int], height: int = 300) -> go.Figure:
-    """Donut chart for severity distribution."""
-    labels = [k.capitalize() for k in severity_counts.keys()]
-    values = list(severity_counts.values())
-    colours = [SEV_COLOURS.get(k.lower(), "#6b8299") for k in severity_counts.keys()]
+
+# ── 1. Severity Donut ─────────────────────────────────────────────────────────
+
+def severity_donut(
+    counts: dict,          # e.g. {"critical": 3, "high": 2, ...}
+    height: int = 300,
+) -> go.Figure:
+    """
+    Donut chart showing issue distribution by severity.
+
+    Args:
+        counts: Dict mapping severity → count
+        height: Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    labels  = [k for k, v in counts.items() if v > 0]
+    values  = [counts[k] for k in labels]
+    colours = [_SEV_COLOURS.get(k, _MUTED) for k in labels]
 
     fig = go.Figure(go.Pie(
         labels=labels,
         values=values,
-        hole=0.6,
-        marker=dict(colors=colours, line=dict(color=_BG, width=2)),
-        textinfo="label+percent",
-        textfont=dict(family=_FONT_MONO, size=11),
-        hovertemplate="<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
+        hole=0.60,
+        marker=dict(colors=colours, line=dict(color=_BG_CARD, width=2)),
+        textinfo="label+value",
+        textfont=dict(size=11, color=_TEXT),
+        hovertemplate="%{label}: %{value} issues<extra></extra>",
     ))
 
     total = sum(values)
     fig.add_annotation(
         text=f"<b>{total}</b><br><span style='font-size:10px'>issues</span>",
         x=0.5, y=0.5,
-        font=dict(family=_FONT_MONO, size=16, color="#c9d8e8"),
         showarrow=False,
-        align="center",
+        font=dict(size=14, color=_TEXT),
+        xanchor="center", yanchor="middle",
     )
 
-    fig.update_layout(
-        **_LAYOUT_BASE,
-        height=height,
-        title=dict(text="Severity Distribution", font=dict(size=13, color="#c9d8e8"), x=0.02),
+    layout = _base_layout(height)
+    layout.update(
         showlegend=True,
+        title=dict(text="By Severity", font=dict(size=12, color=_MUTED), x=0.02, y=0.97),
     )
+    layout.pop("xaxis", None)
+    layout.pop("yaxis", None)
+    fig.update_layout(**layout)
     return fig
 
 
-# ── Category bar chart ────────────────────────────────────────────────────────
+# ── 2. Category Bar Chart ─────────────────────────────────────────────────────
 
-def category_bar(category_counts: dict[str, int], height: int = 280) -> go.Figure:
-    """Horizontal bar chart for issue categories."""
-    cats   = list(category_counts.keys())
-    counts = list(category_counts.values())
+def category_bar(
+    counts: dict,          # e.g. {"credentials": 5, "encryption": 3, ...}
+    height: int = 300,
+) -> go.Figure:
+    """
+    Horizontal bar chart showing issue count per category.
 
-    cat_colours = {
-        "credentials":    "#f04f47",
-        "encryption":     "#26d4d4",
-        "access_control": "#e88c3a",
-        "logging":        "#3dba6e",
-        "baseline":       "#3b8ef3",
-    }
-    colours = [cat_colours.get(c.lower(), "#6b8299") for c in cats]
+    Args:
+        counts: Dict mapping category → count
+        height: Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    cats    = list(counts.keys())
+    vals    = [counts[c] for c in cats]
+    colours = [_CAT_COLOURS.get(c, _BLUE) for c in cats]
+
+    # Prettify category names
+    pretty = [c.replace("_", " ").title() for c in cats]
 
     fig = go.Figure(go.Bar(
-        x=counts,
-        y=[c.replace("_", " ").title() for c in cats],
+        y=pretty,
+        x=vals,
         orientation="h",
-        marker=dict(
-            color=colours,
-            opacity=0.85,
-            line=dict(color=colours, width=0),
-        ),
-        text=counts,
+        marker=dict(color=colours, line=dict(color=_BG_CARD, width=1)),
+        text=vals,
         textposition="outside",
-        textfont=dict(family=_FONT_MONO, size=11, color="#c9d8e8"),
-        hovertemplate="<b>%{y}</b>: %{x} issues<extra></extra>",
+        textfont=dict(size=10, color=_TEXT),
+        hovertemplate="%{y}: %{x} issues<extra></extra>",
     ))
 
-    fig.update_layout(
-        **_LAYOUT_BASE,
-        height=height,
-        title=dict(text="Issues by Category", font=dict(size=13, color="#c9d8e8"), x=0.02),
-        xaxis=dict(gridcolor=_GRID, zeroline=False, showgrid=True),
-        yaxis=dict(gridcolor="rgba(0,0,0,0)", zeroline=False),
+    layout = _base_layout(height)
+    layout.update(
+        title=dict(text="By Category", font=dict(size=12, color=_MUTED), x=0.02, y=0.97),
+        xaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="Issues", font=dict(color=_MUTED))),
+        yaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="", font=dict(color=_MUTED))),
         showlegend=False,
-        bargap=0.3,
     )
+    fig.update_layout(**layout)
     return fig
 
 
-# ── Monte Carlo histogram ─────────────────────────────────────────────────────
+# ── 3. Monte Carlo Histogram ──────────────────────────────────────────────────
 
 def mc_histogram(
-    before: list[float],
-    after: list[float],
+    before: List[float],
+    after:  List[float],
     before_mean: float,
-    after_mean: float,
-    height: int = 380,
+    after_mean:  float,
+    height: int = 360,
 ) -> go.Figure:
-    """Overlapping histograms comparing before/after risk distributions."""
+    """
+    Overlapping histogram showing risk distributions before and after remediation.
+
+    Args:
+        before:      Risk samples before remediation
+        after:       Risk samples after remediation
+        before_mean: Mean of before distribution (for annotation)
+        after_mean:  Mean of after distribution (for annotation)
+        height:      Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    before_arr = np.array(before, dtype=float)
+    after_arr  = np.array(after,  dtype=float)
+
     fig = go.Figure()
 
     # Before
     fig.add_trace(go.Histogram(
-        x=before,
-        name="Before remediation",
-        nbinsx=60,
-        marker=dict(color="rgba(240,79,71,0.5)", line=dict(color="rgba(240,79,71,0.8)", width=0.5)),
-        opacity=0.75,
+        x=before_arr,
+        name="Before Remediation",
+        nbinsx=50,
+        marker_color=_RED,
+        opacity=0.55,
         hovertemplate="Risk: %{x:.1f}<br>Count: %{y}<extra>Before</extra>",
     ))
 
     # After
     fig.add_trace(go.Histogram(
-        x=after,
-        name="After remediation",
-        nbinsx=60,
-        marker=dict(color="rgba(61,186,110,0.5)", line=dict(color="rgba(61,186,110,0.8)", width=0.5)),
-        opacity=0.75,
+        x=after_arr,
+        name="After Remediation",
+        nbinsx=50,
+        marker_color=_GREEN,
+        opacity=0.55,
         hovertemplate="Risk: %{x:.1f}<br>Count: %{y}<extra>After</extra>",
     ))
 
     # Mean lines
-    for mean_val, colour, label in [
-        (before_mean, "#f04f47", f"Before μ = {before_mean:.1f}"),
-        (after_mean,  "#3dba6e", f"After μ = {after_mean:.1f}"),
-    ]:
-        fig.add_vline(
-            x=mean_val, line_dash="dash", line_color=colour, line_width=1.5,
-            annotation=dict(
-                text=label,
-                font=dict(family=_FONT_MONO, size=10, color=colour),
-                bgcolor="rgba(0,0,0,0.6)",
-            ),
-        )
-
-    fig.update_layout(
-        **_LAYOUT_BASE,
-        height=height,
-        barmode="overlay",
-        title=dict(text="Risk Distribution: Before vs After Remediation",
-                   font=dict(size=13, color="#c9d8e8"), x=0.02),
-        xaxis=dict(title="Risk Score (0–100)", gridcolor=_GRID, zeroline=False),
-        yaxis=dict(title="Frequency", gridcolor=_GRID, zeroline=False),
+    fig.add_vline(
+        x=before_mean, line_dash="dash", line_color=_RED, line_width=1.5,
+        annotation_text=f"μ={before_mean:.1f}",
+        annotation_font=dict(color=_RED, size=10),
+        annotation_position="top right",
     )
+    fig.add_vline(
+        x=after_mean, line_dash="dash", line_color=_GREEN, line_width=1.5,
+        annotation_text=f"μ={after_mean:.1f}",
+        annotation_font=dict(color=_GREEN, size=10),
+        annotation_position="top left",
+    )
+
+    layout = _base_layout(height)
+    layout.update(
+        barmode="overlay",
+        title=dict(
+            text="Risk Distribution — Before vs After Remediation",
+            font=dict(size=12, color=_MUTED), x=0.02, y=0.97,
+        ),
+        xaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="Risk Score (0–100)", font=dict(color=_MUTED)), range=[0, 105]),
+        yaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="Frequency", font=dict(color=_MUTED))),
+        legend=dict(**layout["legend"], x=0.75, y=0.95),
+    )
+    fig.update_layout(**layout)
     return fig
 
 
-# ── Box plot comparison ───────────────────────────────────────────────────────
+# ── 4. Box Plot Comparison ────────────────────────────────────────────────────
 
 def risk_box_plot(
-    before: list[float],
-    after: list[float],
-    height: int = 320,
+    before: List[float],
+    after:  List[float],
+    height: int = 360,
 ) -> go.Figure:
-    """Side-by-side box plots for before/after risk."""
+    """
+    Side-by-side box plots for risk distributions.
+
+    Args:
+        before: Risk samples before remediation
+        after:  Risk samples after remediation
+        height: Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
     fig = go.Figure()
 
-    for data, name, colour in [
-        (before, "Before", "#f04f47"),
-        (after,  "After",  "#3dba6e"),
-    ]:
-        fig.add_trace(go.Box(
-            y=data,
-            name=name,
-            marker=dict(color=colour, size=4, opacity=0.6),
-            line=dict(color=colour, width=1.5),
-            fillcolor=colour.replace("#", "rgba(").rstrip(")") + ",0.12)",
-            boxmean="sd",
-            hovertemplate="<b>%{fullData.name}</b><br>Value: %{y:.2f}<extra></extra>",
-        ))
+    fig.add_trace(go.Box(
+        y=list(before),
+        name="Before",
+        marker_color=_RED,
+        line_color=_RED,
+        fillcolor="rgba(240,79,71,0.15)",
+        boxmean="sd",
+        hovertemplate="Before<br>%{y:.2f}<extra></extra>",
+    ))
 
-    fig.update_layout(
-        **_LAYOUT_BASE,
-        height=height,
-        title=dict(text="Risk Score Distribution", font=dict(size=13, color="#c9d8e8"), x=0.02),
-        yaxis=dict(title="Risk Score", gridcolor=_GRID, zeroline=False),
-        xaxis=dict(gridcolor="rgba(0,0,0,0)"),
+    fig.add_trace(go.Box(
+        y=list(after),
+        name="After",
+        marker_color=_GREEN,
+        line_color=_GREEN,
+        fillcolor="rgba(61,186,110,0.15)",
+        boxmean="sd",
+        hovertemplate="After<br>%{y:.2f}<extra></extra>",
+    ))
+
+    layout = _base_layout(height)
+    layout.update(
+        title=dict(text="Risk Distribution Comparison", font=dict(size=12, color=_MUTED), x=0.02, y=0.97),
+        yaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="Risk Score (0–100)", font=dict(color=_MUTED)), range=[0, 105]),
         showlegend=False,
     )
+    fig.update_layout(**layout)
     return fig
 
 
-# ── NIST Coverage radar ───────────────────────────────────────────────────────
+# ── 5. NIST Radar Chart ───────────────────────────────────────────────────────
 
-def nist_radar(nist_counts: dict[str, int], height: int = 320) -> go.Figure:
-    """Radar/spider chart for NIST CSF function coverage."""
-    categories = ["IDENTIFY", "PROTECT", "DETECT", "RESPOND", "RECOVER"]
-    values     = [nist_counts.get(c, 0) for c in categories]
-    values_closed = values + [values[0]]
-    cats_closed   = categories + [categories[0]]
+def nist_radar(
+    counts: dict,          # {"IDENTIFY": 0, "PROTECT": 5, "DETECT": 3, ...}
+    height: int = 320,
+) -> go.Figure:
+    """
+    Radar / spider chart showing NIST CSF function coverage.
+
+    Args:
+        counts: Dict mapping NIST function → issue count
+        height: Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    functions = ["IDENTIFY", "PROTECT", "DETECT", "RESPOND", "RECOVER"]
+    values    = [counts.get(f, 0) for f in functions]
+    # Close the polygon
+    functions_closed = functions + [functions[0]]
+    values_closed    = values + [values[0]]
+
+    colours = [_NIST_COLOURS[f] for f in functions]
 
     fig = go.Figure(go.Scatterpolar(
         r=values_closed,
-        theta=cats_closed,
+        theta=functions_closed,
         fill="toself",
-        fillcolor="rgba(59,142,243,0.15)",
-        line=dict(color="#3b8ef3", width=2),
-        marker=dict(color="#3b8ef3", size=6),
-        hovertemplate="<b>%{theta}</b><br>Issues: %{r}<extra></extra>",
+        fillcolor="rgba(59,142,243,0.12)",
+        line=dict(color=_BLUE, width=2),
+        marker=dict(color=colours + [colours[0]], size=8),
+        hovertemplate="%{theta}: %{r} issues<extra></extra>",
     ))
 
-    fig.update_layout(
-        **_LAYOUT_BASE,
-        height=height,
-        title=dict(text="NIST CSF Coverage", font=dict(size=13, color="#c9d8e8"), x=0.02),
+    layout = _base_layout(height)
+    layout.update(
         polar=dict(
-            bgcolor=_BG,
+            bgcolor=_BG_CARD,
             radialaxis=dict(
-                visible=True, gridcolor=_GRID, linecolor=_GRID,
-                tickfont=dict(family=_FONT_MONO, size=10, color=_TEXT),
+                visible=True,
+                gridcolor=_BORDER,
+                linecolor=_BORDER,
+                tickfont=dict(color=_MUTED, size=9),
+                range=[0, max(values) + 1 if max(values) > 0 else 5],
             ),
             angularaxis=dict(
-                gridcolor=_GRID, linecolor=_GRID,
-                tickfont=dict(family=_FONT_MONO, size=11, color="#c9d8e8"),
+                gridcolor=_BORDER,
+                linecolor=_BORDER,
+                tickfont=dict(color=_TEXT, size=10),
             ),
         ),
         showlegend=False,
+        title=dict(text="NIST CSF Coverage", font=dict(size=12, color=_MUTED), x=0.02, y=0.97),
     )
+    # Radar uses polar, remove cartesian axes
+    layout.pop("xaxis", None)
+    layout.pop("yaxis", None)
+    fig.update_layout(**layout)
     return fig
 
 
-# ── Risk reduction gauge ──────────────────────────────────────────────────────
+# ── 6. Risk Gauge ─────────────────────────────────────────────────────────────
 
-def risk_gauge(score: float, label: str = "Risk Score", height: int = 250) -> go.Figure:
-    """Gauge chart for a single risk score (0–100)."""
-    if score >= 80:   colour = "#f04f47"
-    elif score >= 60: colour = "#e88c3a"
-    elif score >= 40: colour = "#d9a83a"
-    elif score >= 20: colour = "#3dba6e"
-    else:             colour = "#3b8ef3"
+def risk_gauge(
+    value:  float,
+    label:  str = "Risk Score",
+    height: int = 220,
+) -> go.Figure:
+    """
+    Gauge indicator for a single risk score (0–100).
+
+    Colour zones:
+        0–20   → green   (low)
+        20–40  → yellow  (medium)
+        40–70  → orange  (high)
+        70–100 → red     (critical)
+
+    Args:
+        value:  The risk score to display (0–100)
+        label:  Display label below the gauge
+        height: Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    # Pick needle colour based on value
+    if value < 20:
+        colour = _GREEN
+    elif value < 40:
+        colour = _YELLOW
+    elif value < 70:
+        colour = _ORANGE
+    else:
+        colour = _RED
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=score,
-        number=dict(
-            font=dict(family=_FONT_MONO, size=32, color=colour),
-            suffix="",
-        ),
+        value=round(value, 1),
+        title=dict(text=label, font=dict(size=12, color=_MUTED)),
+        number=dict(font=dict(size=28, color=colour), suffix=""),
         gauge=dict(
-            axis=dict(range=[0, 100], tickfont=dict(family=_FONT_MONO, size=10, color=_TEXT)),
+            axis=dict(
+                range=[0, 100],
+                tickwidth=1,
+                tickcolor=_BORDER,
+                tickfont=dict(color=_MUTED, size=9),
+            ),
             bar=dict(color=colour, thickness=0.25),
-            bgcolor=_BG,
+            bgcolor=_BG_PANEL,
             borderwidth=1,
-            bordercolor=_GRID,
+            bordercolor=_BORDER,
             steps=[
-                dict(range=[0, 20],   color="rgba(59,142,243,0.1)"),
-                dict(range=[20, 40],  color="rgba(61,186,110,0.1)"),
-                dict(range=[40, 60],  color="rgba(217,168,58,0.1)"),
-                dict(range=[60, 80],  color="rgba(232,140,58,0.1)"),
-                dict(range=[80, 100], color="rgba(240,79,71,0.1)"),
+                dict(range=[0, 20],   color="rgba(61,186,110,0.12)"),
+                dict(range=[20, 40],  color="rgba(217,168,58,0.12)"),
+                dict(range=[40, 70],  color="rgba(232,140,58,0.12)"),
+                dict(range=[70, 100], color="rgba(240,79,71,0.12)"),
             ],
+            threshold=dict(
+                line=dict(color=colour, width=2),
+                thickness=0.75,
+                value=value,
+            ),
         ),
-        title=dict(text=label, font=dict(family=_FONT_MONO, size=12, color=_TEXT)),
     ))
 
-    fig.update_layout(**_LAYOUT_BASE, height=height, showlegend=False)
+    layout = _base_layout(height)
+    layout.update(margin=dict(l=20, r=20, t=40, b=20))
+    layout.pop("xaxis", None)
+    layout.pop("yaxis", None)
+    fig.update_layout(**layout)
+    return fig
+
+
+# ── 7. Risk Reduction Bar ─────────────────────────────────────────────────────
+
+def risk_reduction_bar(
+    before_mean: float,
+    after_mean:  float,
+    height: int = 200,
+) -> go.Figure:
+    """
+    Simple horizontal bar showing before vs after risk means.
+
+    Args:
+        before_mean: Mean risk before remediation
+        after_mean:  Mean risk after remediation
+        height:      Chart height in px
+
+    Returns:
+        Plotly Figure
+    """
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        y=["Before", "After"],
+        x=[before_mean, after_mean],
+        orientation="h",
+        marker=dict(color=[_RED, _GREEN]),
+        text=[f"{before_mean:.1f}", f"{after_mean:.1f}"],
+        textposition="outside",
+        textfont=dict(color=_TEXT, size=12),
+        hovertemplate="%{y}: %{x:.2f}<extra></extra>",
+    ))
+
+    layout = _base_layout(height)
+    layout.update(
+        title=dict(text="Mean Risk Score", font=dict(size=12, color=_MUTED), x=0.02, y=0.97),
+        xaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="Risk Score", font=dict(color=_MUTED)), range=[0, 110]),
+        yaxis=dict(gridcolor=_BORDER, linecolor=_BORDER, tickfont=dict(color=_MUTED, size=10),
+                   title=dict(text="", font=dict(color=_MUTED))),
+        showlegend=False,
+        margin=dict(l=60, r=40, t=40, b=30),
+    )
+    fig.update_layout(**layout)
     return fig
