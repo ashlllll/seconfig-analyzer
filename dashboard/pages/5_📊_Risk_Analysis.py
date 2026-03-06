@@ -4,13 +4,18 @@ pages/5_📊_Risk_Analysis.py
 Monte Carlo Risk Simulation page.
 """
 
-import streamlit as st
 import time
-import numpy as np
 from pathlib import Path
 import sys
 
+import numpy as np
+
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
 
 st.set_page_config(page_title="Risk Analysis — SecConfig", page_icon="📊", layout="wide")
 
@@ -21,6 +26,8 @@ if css_path.exists():
 for key, val in [("issues",[]),("fixes",[]),("simulation_result",None),("simulation_ran",False)]:
     if key not in st.session_state:
         st.session_state[key] = val
+
+render_sidebar(current_page="Risk Analysis")
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(

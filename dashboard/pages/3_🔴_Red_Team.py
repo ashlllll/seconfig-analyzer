@@ -4,18 +4,24 @@ pages/3_🔴_Red_Team.py
 Red Team Analysis page — run deterministic rule-based security review.
 """
 
-import streamlit as st
 import time
 from pathlib import Path
 import sys
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
 
 st.set_page_config(page_title="Red Team — SecConfig", page_icon="🔴", layout="wide")
 
 css_path = Path(__file__).parent.parent / "styles" / "custom.css"
 if css_path.exists():
     st.markdown(f"<style>{open(css_path).read()}</style>", unsafe_allow_html=True)
+
+render_sidebar(current_page="Red Team")
 
 # Guard — need uploaded file
 for key, val in [("raw_content",""),("file_name",""),("file_type",""),

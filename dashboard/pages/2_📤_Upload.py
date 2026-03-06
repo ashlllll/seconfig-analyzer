@@ -4,11 +4,16 @@ pages/2_📤_Upload.py
 File upload page — parse and preview configuration files.
 """
 
-import streamlit as st
 from pathlib import Path
 import sys
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
+
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Upload — SecConfig", page_icon="📤", layout="wide")
@@ -16,6 +21,8 @@ st.set_page_config(page_title="Upload — SecConfig", page_icon="📤", layout="
 css_path = Path(__file__).parent.parent / "styles" / "custom.css"
 if css_path.exists():
     st.markdown(f"<style>{open(css_path).read()}</style>", unsafe_allow_html=True)
+
+render_sidebar(current_page="Upload")
 
 # ── Session state guard ────────────────────────────────────────────────────────
 for key, val in [("raw_content",""),("file_name",""),("file_type",""),

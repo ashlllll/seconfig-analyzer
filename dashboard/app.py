@@ -7,8 +7,15 @@ Run with:
     streamlit run dashboard/app.py
 """
 
-import streamlit as st
 from pathlib import Path
+import sys
+
+import streamlit as st
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from components.sidebar import render_sidebar
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
@@ -23,6 +30,8 @@ css_path = Path(__file__).parent / "styles" / "custom.css"
 if css_path.exists():
     with open(css_path) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+render_sidebar(current_page="Home")
 
 # ── Session state defaults ────────────────────────────────────────────────────
 defaults = {
@@ -46,87 +55,6 @@ defaults = {
 for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
-
-# ── Sidebar branding ──────────────────────────────────────────────────────────
-st.sidebar.markdown(
-    """
-    <div style="padding:20px 14px 16px;border-bottom:1px solid #1a2838;margin-bottom:8px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:1.15rem;
-                    font-weight:700;color:#c9d8e8;letter-spacing:-0.02em;">
-            🔒 SecConfig
-        </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;
-                    color:#3d5166;margin-top:2px;letter-spacing:0.06em;">
-            ANALYZER v1.0 · LSBF Singapore
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Current file indicator in sidebar
-if st.session_state.file_name: 
-    st.sidebar.markdown(
-        f"""
-        <div style="padding:10px 14px;background:#101820;border-radius:6px;
-                    border:1px solid #1a2838;margin:8px 8px 12px;">
-            <div style="font-size:10px;color:#3d5166;font-family:'JetBrains Mono',monospace;
-                        text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">
-                Active file
-            </div>
-            <div style="font-size:12px;color:#26d4d4;font-family:'JetBrains Mono',monospace;
-                        word-break:break-all;">
-                {st.session_state.file_name}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# Status indicators
-if st.session_state.analysis_ran:
-    n_issues = len(st.session_state.issues)
-    n_crit   = sum(1 for i in st.session_state.issues if getattr(i, "severity", "") == "critical")
-    st.sidebar.markdown(
-        f"""
-        <div style="padding:10px 14px;margin:0 8px 12px;background:#101820;
-                    border:1px solid #1a2838;border-radius:6px;">
-            <div style="font-size:10px;color:#3d5166;font-family:'JetBrains Mono',monospace;
-                        text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">
-                Analysis summary
-            </div>
-            <div style="font-size:12px;color:#c9d8e8;font-family:'JetBrains Mono',monospace;
-                        line-height:1.8;">
-                Issues: <span style="color:#3b8ef3;">{n_issues}</span><br>
-                Critical: <span style="color:#f04f47;">{n_crit}</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# LLM toggle in sidebar
-st.sidebar.markdown("---")
-st.sidebar.markdown(
-    '<div style="font-size:10px;color:#3d5166;font-family:\'JetBrains Mono\',monospace;'
-    'text-transform:uppercase;letter-spacing:0.08em;padding:0 6px;margin-bottom:6px;">Settings</div>',
-    unsafe_allow_html=True,
-)
-llm_toggle = st.sidebar.toggle(
-    "🤖 LLM Explainer",
-    value=st.session_state.llm_enabled,
-    help="Enable optional AI explanation layer (requires OpenAI API key)",
-)
-st.session_state.llm_enabled = llm_toggle
-
-if llm_toggle:
-    api_key = st.sidebar.text_input(
-        "OpenAI API Key",
-        value=st.session_state.llm_api_key,
-        type="password",
-        placeholder="sk-...",
-    )
-    st.session_state.llm_api_key = api_key
 
 # ── Home page content ─────────────────────────────────────────────────────────
 st.markdown(

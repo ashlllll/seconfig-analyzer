@@ -4,11 +4,15 @@ pages/6_💬_AI_Explainer.py
 Optional LLM Explainer — isolated, post-analysis explanation only.
 """
 
-import streamlit as st
 from pathlib import Path
 import sys
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
 
 st.set_page_config(page_title="AI Explainer — SecConfig", page_icon="💬", layout="wide")
 
@@ -21,6 +25,8 @@ for key, val in [("llm_enabled",False),("llm_api_key",""),("chat_history",[]),
                   ("user_background","junior_dev")]:
     if key not in st.session_state:
         st.session_state[key] = val
+
+render_sidebar(current_page="AI Explainer")
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -256,9 +262,9 @@ else:
                         else:
                             explainer = LLMExplainerService(api_key=api_key, enabled=True)
                             response = explainer.explain(
-                                context=context_summary,
+                                report_context=context_summary,
                                 user_query=user_input,
-                                conversation_history=st.session_state.chat_history[:-1],
+                                user_background=st.session_state.get("user_background", "junior_dev"),
                             )
 
                     except Exception as exc:

@@ -4,13 +4,17 @@ pages/7_📋_Reports.py
 Report generation and export page.
 """
 
-import streamlit as st
 import json
 from pathlib import Path
 import sys
 from datetime import datetime
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
 
 st.set_page_config(page_title="Reports — SecConfig", page_icon="📋", layout="wide")
 
@@ -22,6 +26,8 @@ for key, val in [("issues",[]),("fixes",[]),("simulation_result",None),
                   ("file_name",""),("file_type",""),("analysis_ran",False)]:
     if key not in st.session_state:
         st.session_state[key] = val
+
+render_sidebar(current_page="Reports")
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(

@@ -4,11 +4,15 @@ pages/4_🔵_Blue_Team.py
 Blue Team Remediation page — template-based fix generation.
 """
 
-import streamlit as st
 from pathlib import Path
 import sys
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dashboard.components.sidebar import render_sidebar
 
 st.set_page_config(page_title="Blue Team — SecConfig", page_icon="🔵", layout="wide")
 
@@ -20,6 +24,8 @@ for key, val in [("issues",[]),("fixes",[]),("analysis_ran",False),
                   ("fixes_generated",False),("selected_fix_ids",set())]:
     if key not in st.session_state:
         st.session_state[key] = val
+
+render_sidebar(current_page="Blue Team")
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -212,7 +218,7 @@ else:
     # Fix type tabs
     tab_all, tab_auto, tab_manual = st.tabs(["All Fixes", "Automated", "Manual Guidance"])
 
-    def _render_fix(fix):
+    def _render_fix(fix, tab_prefix="all"):
         fix_type = _get(fix, "fix_type", "manual")
         title    = _get(fix, "issue_title", "Unknown")
         priority = _get(fix, "priority", "medium")
@@ -280,7 +286,7 @@ else:
 
             selected = st.checkbox(
                 "✅ Apply this fix",
-                key=f"chk_{fix_id}",
+                key=f"chk_{tab_prefix}_{fix_id}",
                 value=fix_id in st.session_state.selected_fix_ids,
             )
             if selected:
@@ -290,13 +296,13 @@ else:
 
     with tab_all:
         for fix in fixes:
-            _render_fix(fix)
+            _render_fix(fix, tab_prefix="all")
 
     with tab_auto:
         auto_fixes = [f for f in fixes if _get(f,"fix_type","") in ("automated","semi_automated")]
         if auto_fixes:
             for fix in auto_fixes:
-                _render_fix(fix)
+                _render_fix(fix, tab_prefix="auto")
         else:
             st.info("No automated fixes available.")
 
@@ -304,7 +310,7 @@ else:
         man_fixes = [f for f in fixes if _get(f,"fix_type","") == "manual"]
         if man_fixes:
             for fix in man_fixes:
-                _render_fix(fix)
+                _render_fix(fix, tab_prefix="manual")
         else:
             st.info("No manual fixes in this set.")
 
