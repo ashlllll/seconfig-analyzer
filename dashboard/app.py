@@ -12,10 +12,10 @@ import sys
 
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
-from components.sidebar import render_sidebar
+from dashboard.components.sidebar import render_sidebar
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
@@ -60,7 +60,7 @@ for key, value in defaults.items():
 st.markdown(
     """
     <div style="text-align:center;">
-        <div style="font-size:3.5rem;margin-bottom:16px;">🔒</div>
+        <div style="font-size:3.5rem;margin-bottom:16px; margin-top:24px;">🔒</div>
         <h1 style="font-family:'JetBrains Mono',monospace;font-size:2.2rem;
                    color:#c9d8e8;margin:0;letter-spacing:-0.03em;">
             SecConfig Analyzer

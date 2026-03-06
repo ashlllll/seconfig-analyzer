@@ -16,7 +16,12 @@ from dashboard.components.sidebar import render_sidebar
 
 
 # ── Page config ────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Upload — SecConfig", page_icon="📤", layout="wide")
+st.set_page_config(
+    page_title="Upload — SecConfig",
+    page_icon="📤",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 css_path = Path(__file__).parent.parent / "styles" / "custom.css"
 if css_path.exists():

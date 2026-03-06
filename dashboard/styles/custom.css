@@ -33,7 +33,7 @@ html, body, [class*="css"] {
     overflow: hidden !important;
 }
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
 .stDeployButton { display: none !important; }
 
 [data-testid="stSidebar"] {

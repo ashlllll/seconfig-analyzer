@@ -14,7 +14,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.components.sidebar import render_sidebar
 
-st.set_page_config(page_title="Blue Team — SecConfig", page_icon="🔵", layout="wide")
+st.set_page_config(
+    page_title="Blue Team — SecConfig",
+    page_icon="🔵",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 css_path = Path(__file__).parent.parent / "styles" / "custom.css"
 if css_path.exists():

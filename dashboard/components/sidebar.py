@@ -58,7 +58,6 @@ def _get(obj, key, default=""):
     """Get value from dict or dataclass."""
     return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
 
-
 def _issue_severity(issue) -> str:
     return _get(issue, "severity", "info").lower()
 
@@ -159,7 +158,7 @@ def _render_logo() -> None:
     """Top logo block — mirrors Claude's 'Claude' wordmark area."""
     st.sidebar.markdown(
         """
-        <div style="padding:18px 14px 12px;border-bottom:1px solid #1a2838;">
+        <div style="padding:1px 14px 12px;border-bottom:1px solid #1a2838;">
             <div style="font-family:'JetBrains Mono',monospace;font-size:1.05rem;
                         font-weight:700;color:#c9d8e8;letter-spacing:-0.02em;">
                 🔒 SecConfig
