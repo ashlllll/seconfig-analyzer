@@ -30,6 +30,12 @@ for key, val in [("issues",[]),("fixes",[]),("analysis_ran",False),
     if key not in st.session_state:
         st.session_state[key] = val
 
+# Reset old checkbox widget states before any widgets are instantiated.
+if st.session_state.pop("_reset_fix_checkboxes", False):
+    for k in list(st.session_state.keys()):
+        if k.startswith("chk_fix_"):
+            st.session_state.pop(k, None)
+
 render_sidebar(current_page="Blue Team")
 
 # ── Header ─────────────────────────────────────────────────────────────────────
@@ -188,6 +194,20 @@ if not st.session_state.fixes_generated:
 else:
     # ── Show fixes ─────────────────────────────────────────────────────────────
     fixes = st.session_state.fixes
+    all_fix_ids = {_get(f, "fix_id", str(id(f))) for f in fixes}
+
+    # Keep selected ids aligned with currently visible fixes.
+    st.session_state.selected_fix_ids = (
+        set(st.session_state.selected_fix_ids).intersection(all_fix_ids)
+    )
+
+    # Process bulk actions before any checkbox widgets are rendered.
+    bulk_action = st.session_state.pop("_bulk_fix_action", "")
+    if bulk_action == "select_all":
+        st.session_state.selected_fix_ids = set(all_fix_ids)
+        for k in list(st.session_state.keys()):
+            if k.startswith("chk_fix_"):
+                st.session_state.pop(k, None)
 
     # Summary metrics
     auto_count  = sum(1 for f in fixes if _get(f,"fix_type","") == "automated")
@@ -223,7 +243,7 @@ else:
     # Fix type tabs
     tab_all, tab_auto, tab_manual = st.tabs(["All Fixes", "Automated", "Manual Guidance"])
 
-    def _render_fix(fix, tab_prefix="all"):
+    def _render_fix(fix, tab_prefix="all", selectable=True):
         fix_type = _get(fix, "fix_type", "manual")
         title    = _get(fix, "issue_title", "Unknown")
         priority = _get(fix, "priority", "medium")
@@ -289,25 +309,29 @@ else:
                     unsafe_allow_html=True,
                 )
 
-            selected = st.checkbox(
-                "✅ Apply this fix",
-                key=f"chk_{tab_prefix}_{fix_id}",
-                value=fix_id in st.session_state.selected_fix_ids,
-            )
-            if selected:
-                st.session_state.selected_fix_ids.add(fix_id)
-            else:
-                st.session_state.selected_fix_ids.discard(fix_id)
+            if selectable:
+                chk_key = f"chk_fix_{fix_id}"
+                if chk_key not in st.session_state:
+                    st.session_state[chk_key] = fix_id in st.session_state.selected_fix_ids
+
+                selected = st.checkbox(
+                    "Apply this fix",
+                    key=chk_key,
+                )
+                if selected:
+                    st.session_state.selected_fix_ids.add(fix_id)
+                else:
+                    st.session_state.selected_fix_ids.discard(fix_id)
 
     with tab_all:
         for fix in fixes:
-            _render_fix(fix, tab_prefix="all")
+            _render_fix(fix, tab_prefix="all", selectable=True)
 
     with tab_auto:
         auto_fixes = [f for f in fixes if _get(f,"fix_type","") in ("automated","semi_automated")]
         if auto_fixes:
             for fix in auto_fixes:
-                _render_fix(fix, tab_prefix="auto")
+                _render_fix(fix, tab_prefix="auto", selectable=False)
         else:
             st.info("No automated fixes available.")
 
@@ -315,7 +339,7 @@ else:
         man_fixes = [f for f in fixes if _get(f,"fix_type","") == "manual"]
         if man_fixes:
             for fix in man_fixes:
-                _render_fix(fix, tab_prefix="manual")
+                _render_fix(fix, tab_prefix="manual", selectable=False)
         else:
             st.info("No manual fixes in this set.")
 
@@ -342,11 +366,13 @@ else:
             st.switch_page("pages/5_📊_Risk_Analysis.py")
     with col_b:
         # Select all
-        if st.button("☑️ Select All Fixes", use_container_width=True):
-            st.session_state.selected_fix_ids = {_get(f,"fix_id",str(id(f))) for f in fixes}
+        if st.button("Select All Fixes", use_container_width=True):
+            st.session_state["_bulk_fix_action"] = "select_all"
             st.rerun()
     with col_c:
         if st.button("🔄 Regenerate", use_container_width=True):
+            st.session_state["_reset_fix_checkboxes"] = True
+            st.session_state["_bulk_fix_action"] = ""
             st.session_state.fixes_generated = False
             st.session_state.fixes = []
             st.session_state.selected_fix_ids = set()

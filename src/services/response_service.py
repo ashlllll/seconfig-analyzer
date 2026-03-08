@@ -143,13 +143,14 @@ class ResponseService:
             high_count=len(issues_by_severity.get("high", [])),
             medium_count=len(issues_by_severity.get("medium", [])),
             low_count=len(issues_by_severity.get("low", [])),
+            info_count=len(issues_by_severity.get("info", [])),
             initial_risk_score=round(initial_risk, 2),
             final_risk_score=round(final_risk, 2),
             risk_reduction_percentage=round(risk_reduction_pct, 2),
             auto_fixable_count=auto_fixable,
             manual_fix_count=manual_count,
             top_issues=top_issue_titles,
-            key_recommendation=key_rec,
+            key_recommendations=[key_rec],
         )
 
     def _group_by_severity(

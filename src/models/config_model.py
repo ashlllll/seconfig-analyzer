@@ -27,6 +27,7 @@ class ConfigFile:
     parsed_content: Dict[str, Any]  # flat or nested key-value pairs
 
     # ── Metadata ──────────────────────────────────────────────────────────────
+    file_path: str = ""
     encoding: str = 'utf-8'
     line_count: int = 0
 
@@ -57,6 +58,7 @@ class ConfigFile:
         return {
             "file_name": self.file_name,
             "file_type": self.file_type,
+            "file_path": self.file_path,
             "file_size_kb": self.file_size_kb,
             "line_count": self.line_count,
             "encoding": self.encoding,

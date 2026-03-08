@@ -44,6 +44,7 @@ class MonteCarloSimulator:
         self,
         issues_before: List[SecurityIssue],
         issues_after: List[SecurityIssue],
+        confidence_level: float = 0.95,
     ) -> SimulationResult:
         """
         Run Monte Carlo simulation comparing before and after remediation.
@@ -51,10 +52,13 @@ class MonteCarloSimulator:
         Args:
             issues_before: Issues detected before any fixes applied
             issues_after:  Issues remaining after fixes applied
+            confidence_level: Confidence level for interval estimation (0-1)
 
         Returns:
             SimulationResult with full statistical comparison
         """
+        confidence_level = float(np.clip(confidence_level, 0.5, 0.999))
+
         # Run simulation for both scenarios
         dist_before = self._run_simulation(issues_before)
         dist_after = self._run_simulation(issues_after)
@@ -70,7 +74,11 @@ class MonteCarloSimulator:
         )
 
         # Confidence interval for the risk reduction
-        ci = self._confidence_interval(dist_before, dist_after)
+        ci = self._confidence_interval(
+            dist_before,
+            dist_after,
+            confidence=confidence_level,
+        )
 
         # Statistical significance test
         is_significant, p_value = self._significance_test(dist_before, dist_after)
@@ -82,6 +90,7 @@ class MonteCarloSimulator:
             after_remediation=stats_after,
             risk_reduction=round(risk_reduction, 2),
             risk_reduction_percentage=risk_reduction_pct,
+            confidence_level=confidence_level,
             confidence_interval=ci,
             is_significant=is_significant,
             p_value=p_value,
@@ -145,10 +154,11 @@ class MonteCarloSimulator:
             )
             risk_scores += individual_risks
 
-        # Normalize to 0-100
-        max_possible = num_issues * 10.0
-        if max_possible > 0:
-            risk_scores = np.clip((risk_scores / max_possible) * 100.0, 0.0, 100.0)
+        # Normalize to 0-100 with sub-linear issue scaling so scores don't
+        # collapse to 100 when many issues exist, while still reflecting
+        # higher aggregate risk for larger issue sets.
+        scale_denominator = max(10.0, 10.0 * (num_issues ** 0.75))
+        risk_scores = np.clip((risk_scores / scale_denominator) * 100.0, 0.0, 100.0)
 
         return risk_scores
 
@@ -219,18 +229,25 @@ class MonteCarloSimulator:
         Returns:
             (is_significant, p_value)
         """
+        if np.allclose(dist_before, dist_after):
+            # No measurable difference between distributions.
+            return False, 1.0
+
         try:
             from scipy.stats import wilcoxon
 
             # Use a sample to keep computation fast (max 1000 pairs)
             sample_size = min(1000, self.iterations)
-            idx = np.random.choice(self.iterations, sample_size, replace=False)
+            rng = np.random.default_rng(self.seed)
+            idx = rng.choice(self.iterations, sample_size, replace=False)
 
             statistic, p_value = wilcoxon(
                 dist_before[idx],
                 dist_after[idx],
                 alternative="greater",
             )
+            if np.isnan(p_value):
+                return False, 1.0
             is_significant = bool(p_value < 0.05)
             return is_significant, round(float(p_value), 4)
 

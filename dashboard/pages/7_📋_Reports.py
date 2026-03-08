@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import sys
 from datetime import datetime
+from typing import Any
 
 import streamlit as st
 
@@ -66,6 +67,46 @@ sim_res = st.session_state.simulation_result
 
 def _get(o, k, d=""):
     return o.get(k,d) if isinstance(o,dict) else getattr(o,k,d)
+
+
+def _to_jsonable(value: Any):
+    """
+    Convert mixed Python / NumPy / model values into JSON-serializable objects.
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+
+    if isinstance(value, dict):
+        return {str(k): _to_jsonable(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_to_jsonable(v) for v in value]
+
+    # NumPy scalars/arrays expose item()/tolist().
+    if hasattr(value, "item"):
+        try:
+            return _to_jsonable(value.item())
+        except Exception:
+            pass
+    if hasattr(value, "tolist"):
+        try:
+            return _to_jsonable(value.tolist())
+        except Exception:
+            pass
+
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+
+    if hasattr(value, "to_dict"):
+        try:
+            return _to_jsonable(value.to_dict())
+        except Exception:
+            pass
+
+    return str(value)
 
 # ── Build report data ──────────────────────────────────────────────────────────
 now = datetime.now()
@@ -425,9 +466,10 @@ md_report = f"""# SecConfig Analyzer — Security Report
 
 ecol1, ecol2, ecol3 = st.columns(3)
 with ecol1:
+    report_json = json.dumps(_to_jsonable(report_dict), indent=2, ensure_ascii=False)
     st.download_button(
         "⬇ Download JSON Report",
-        data=json.dumps(report_dict, indent=2),
+        data=report_json,
         file_name=f"secconfig_report_{now.strftime('%Y%m%d_%H%M%S')}.json",
         mime="application/json",
         use_container_width=True,

@@ -112,22 +112,51 @@ if run_sim:
             from src.core.simulation.monte_carlo import MonteCarloSimulator
 
             issues_before = st.session_state.issues
-            issues_after  = []  # simulated post-fix
             fixes = st.session_state.fixes
-            fixed_rules = {f.get("rule_id","") if isinstance(f,dict) else getattr(f,"rule_id","")
-                           for f in fixes
-                           if (f.get("fix_type","") if isinstance(f,dict) else getattr(f,"fix_type","")) != "manual"}
 
-            def _get(o,k,d=""):
-                return o.get(k,d) if isinstance(o,dict) else getattr(o,k,d)
+            def _get(o, k, d=""):
+                return o.get(k, d) if isinstance(o, dict) else getattr(o, k, d)
 
-            issues_after = [i for i in issues_before
-                            if _get(i,"rule_id","") not in fixed_rules]
+            # If user selected fixes in Blue Team page, simulate only those.
+            selected_fix_ids = st.session_state.get("selected_fix_ids", set()) or set()
+            if selected_fix_ids:
+                active_fixes = [
+                    f for f in fixes
+                    if _get(f, "fix_id", "") in selected_fix_ids
+                ]
+            else:
+                active_fixes = fixes
+
+            fixed_issue_ids = {
+                _get(f, "issue_id", "")
+                for f in active_fixes
+                if _get(f, "fix_type", "") != "manual"
+                and _get(f, "validation_status", "validated") == "validated"
+            }
+            fixed_issue_ids.discard("")
+
+            # Backward-compatibility: some demo fixes carry only rule_id.
+            fixed_rule_ids = {
+                _get(f, "rule_id", "")
+                for f in active_fixes
+                if _get(f, "fix_type", "") != "manual"
+            }
+            fixed_rule_ids.discard("")
+
+            issues_after = [
+                i for i in issues_before
+                if _get(i, "issue_id", "") not in fixed_issue_ids
+                and _get(i, "rule_id", "") not in fixed_rule_ids
+            ]
 
             progress.progress(20, text="Sampling distributions...")
             simulator = MonteCarloSimulator(iterations=iterations, seed=seed)
             progress.progress(40, text="Simulating before remediation...")
-            result = simulator.simulate(issues_before, issues_after)
+            result = simulator.simulate(
+                issues_before,
+                issues_after,
+                confidence_level=confidence,
+            )
             progress.progress(90, text="Computing statistics...")
             time.sleep(0.2)
             progress.progress(100, text="Done.")

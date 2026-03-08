@@ -750,19 +750,3 @@ for i, (icon, title, desc) in enumerate(principles):
             """,
             unsafe_allow_html=True,
         )
-
-# ── Footer ────────────────────────────────────────────────────────────────────
-st.markdown(
-    """
-    <hr style='border-color:#1a2838;margin:32px 0 16px;'>
-    <div style="text-align:center;padding-bottom:24px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1e3650;
-                    line-height:2;">
-            SecConfig Analyzer · CN6000 Final Year Project · LSBF Singapore 2026<br>
-            Qian Zhu (S1034134) · Supervised by Dr. Preethi Kesavan<br>
-            Built with Streamlit · Python · NumPy · SciPy · Plotly
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)

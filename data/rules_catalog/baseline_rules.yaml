@@ -136,6 +136,8 @@ rules:
       patterns:
         - '(?i)(app_env|environment|node_env|rails_env|django_env)\s*[=:]\s*["\']?(development|dev|testing|test|local)["\']?'
         - '(?i)(env)\s*[=:]\s*["\']?(dev|development|test|testing)["\']?'
+        - '(?i)(testing|test_mode)\s*[=:]\s*(true|1|yes|on)'
+        - '(?i)(session_timeout|token_expiry)\s*[=:]\s*0\b'
       apply_to: ["env", "yaml", "json"]
 
     exclusions:
@@ -167,6 +169,8 @@ rules:
         - "APP_ENV=development"
         - "NODE_ENV=dev"
         - "environment: test"
+        - "TESTING=true"
+        - "SESSION_TIMEOUT=0"
       should_not_match:
         - "APP_ENV=production"
         - "NODE_ENV=production"

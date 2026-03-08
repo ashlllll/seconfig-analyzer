@@ -17,40 +17,40 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 class TestProbabilitySampler:
 
     def test_sampler_imports(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         assert s is not None
 
     def test_beta_sample_in_range(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         for _ in range(100):
             val = s.sample_beta(mean=0.7, std=0.15)
             assert 0.0 <= val <= 1.0
 
     def test_normal_sample_clipped_to_range(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         for _ in range(100):
             val = s.sample_normal(mean=0.5, std=0.2)
             assert 0.0 <= val <= 1.0
 
     def test_uniform_sample_in_range(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         for _ in range(100):
             val = s.sample_uniform()
             assert 0.0 <= val <= 1.0
 
     def test_beta_mean_approximate(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         import numpy as np
         s = ProbabilitySampler(seed=42)
         samples = [s.sample_beta(mean=0.7, std=0.1) for _ in range(5000)]
         assert abs(np.mean(samples) - 0.7) < 0.05
 
     def test_seed_reproducibility(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s1 = ProbabilitySampler(seed=42)
         s2 = ProbabilitySampler(seed=42)
         v1 = s1.sample_beta(mean=0.5, std=0.1)
@@ -58,7 +58,7 @@ class TestProbabilitySampler:
         assert v1 == v2
 
     def test_different_seeds_different_values(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         import numpy as np
         s1 = ProbabilitySampler(seed=1)
         s2 = ProbabilitySampler(seed=99)
@@ -67,14 +67,14 @@ class TestProbabilitySampler:
         assert samples1 != samples2
 
     def test_moment_match_beta_valid_params(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         alpha, beta = s.moment_match_beta(mean=0.7, std=0.15)
         assert alpha > 0
         assert beta > 0
 
     def test_moment_match_beta_edge_mean(self):
-        from core.simulation.probability import ProbabilitySampler
+        from src.core.simulation.probability import ProbabilitySampler
         s = ProbabilitySampler(seed=42)
         # Should not raise even for edge mean values
         alpha, beta = s.moment_match_beta(mean=0.01, std=0.05)
@@ -114,26 +114,26 @@ class TestRiskCalculator:
             }
 
     def test_calculator_imports(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         assert calc is not None
 
     def test_risk_score_in_range(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         rp = self._make_risk_profile()
         score = calc.calculate_individual_risk(rp, likelihood=0.7)
         assert 0.0 <= score <= 10.0
 
     def test_zero_likelihood_gives_zero_risk(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         rp = self._make_risk_profile()
         score = calc.calculate_individual_risk(rp, likelihood=0.0)
         assert score == 0.0
 
     def test_high_severity_gives_higher_score(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         rp_high = self._make_risk_profile(severity=9.0)
         rp_low = self._make_risk_profile(severity=2.0)
@@ -142,25 +142,25 @@ class TestRiskCalculator:
         assert score_high > score_low
 
     def test_normalize_single_issue(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         normalized = calc.normalize_risk(total_risk=5.0, num_issues=1)
         assert 0.0 <= normalized <= 100.0
 
     def test_normalize_zero_issues_returns_zero(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         normalized = calc.normalize_risk(total_risk=0.0, num_issues=0)
         assert normalized == 0.0
 
     def test_normalize_caps_at_100(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         normalized = calc.normalize_risk(total_risk=99999.0, num_issues=1)
         assert normalized <= 100.0
 
     def test_impact_high_greater_than_low(self):
-        from core.simulation.risk_calculator import RiskCalculator
+        from src.core.simulation.risk_calculator import RiskCalculator
         calc = RiskCalculator()
         rp_high = self._make_risk_profile(c="high", i="high", a="high")
         rp_low = self._make_risk_profile(c="low", i="low", a="low")
@@ -228,12 +228,12 @@ class TestMonteCarloSimulator:
         return issues
 
     def test_simulator_imports(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=100, seed=42)
         assert sim is not None
 
     def test_simulate_returns_result(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=100, seed=42)
         issues_before = self._make_issues(3)
         issues_after = self._make_issues(1)
@@ -241,7 +241,7 @@ class TestMonteCarloSimulator:
         assert result is not None
 
     def test_before_mean_higher_than_after(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=500, seed=42)
         issues_before = self._make_issues(5)
         issues_after = self._make_issues(1)
@@ -255,7 +255,7 @@ class TestMonteCarloSimulator:
         assert before_mean > after_mean
 
     def test_risk_reduction_positive(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=500, seed=42)
         issues_before = self._make_issues(5)
         issues_after = self._make_issues(1)
@@ -266,7 +266,7 @@ class TestMonteCarloSimulator:
         assert reduction > 0
 
     def test_empty_issues_after_gives_near_zero_risk(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=200, seed=42)
         issues_before = self._make_issues(3)
         issues_after = []
@@ -277,7 +277,7 @@ class TestMonteCarloSimulator:
         assert after_mean == 0.0
 
     def test_same_seed_reproducible(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         issues = self._make_issues(2)
         sim1 = MonteCarloSimulator(iterations=200, seed=42)
         sim2 = MonteCarloSimulator(iterations=200, seed=42)
@@ -288,7 +288,7 @@ class TestMonteCarloSimulator:
         assert abs(m1 - m2) < 0.001
 
     def test_result_has_confidence_interval(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=200, seed=42)
         issues_before = self._make_issues(3)
         issues_after = self._make_issues(1)
@@ -300,7 +300,7 @@ class TestMonteCarloSimulator:
         assert len(ci) == 2
 
     def test_distribution_has_statistics(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=200, seed=42)
         issues = self._make_issues(3)
         result = sim.simulate(issues, [])
@@ -313,7 +313,7 @@ class TestMonteCarloSimulator:
         assert std >= 0
 
     def test_p95_greater_than_p5(self):
-        from core.simulation.monte_carlo import MonteCarloSimulator
+        from src.core.simulation.monte_carlo import MonteCarloSimulator
         sim = MonteCarloSimulator(iterations=500, seed=42)
         issues = self._make_issues(3)
         result = sim.simulate(issues, [])

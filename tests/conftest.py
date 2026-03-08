@@ -12,7 +12,7 @@ import pytest
 
 # ── sys.path setup ────────────────────────────────────────────────────────────
 # Ensure both project root and src/ are on the path so tests can do:
-#   from parsers.env_parser import EnvParser
+#   from src.parsers.env_parser import EnvParser
 #   from src.parsers.env_parser import EnvParser   (either works)
 
 _HERE    = os.path.dirname(os.path.abspath(__file__))
@@ -74,26 +74,68 @@ def edge_cases_dir(synthetic_data_dir) -> str:
     return os.path.join(synthetic_data_dir, "edge_cases")
 
 
+def _read_text(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+# ── Shared content fixtures ───────────────────────────────────────────────────
+
+@pytest.fixture(scope="session")
+def vulnerable_env_content(vulnerable_dir) -> str:
+    return _read_text(os.path.join(vulnerable_dir, "sample_01.env"))
+
+
+@pytest.fixture(scope="session")
+def secure_env_content(secure_dir) -> str:
+    return _read_text(os.path.join(secure_dir, "best_practice_01.env"))
+
+
+@pytest.fixture(scope="session")
+def vulnerable_yaml_content(vulnerable_dir) -> str:
+    return _read_text(os.path.join(vulnerable_dir, "sample_03.yaml"))
+
+
+@pytest.fixture(scope="session")
+def vulnerable_json_content(vulnerable_dir) -> str:
+    return _read_text(os.path.join(vulnerable_dir, "sample_04.json"))
+
+
+@pytest.fixture(scope="session")
+def empty_content(edge_cases_dir) -> str:
+    return _read_text(os.path.join(edge_cases_dir, "empty.env"))
+
+
+@pytest.fixture(scope="session")
+def comments_only_content(edge_cases_dir) -> str:
+    return _read_text(os.path.join(edge_cases_dir, "comments_only.env"))
+
+
+@pytest.fixture(scope="session")
+def malformed_yaml_content(edge_cases_dir) -> str:
+    return _read_text(os.path.join(edge_cases_dir, "malformed.yaml"))
+
+
 # ── Parser fixtures ───────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def env_parser():
     """Return an EnvParser instance."""
-    from parsers.env_parser import EnvParser
+    from src.parsers.env_parser import EnvParser
     return EnvParser()
 
 
 @pytest.fixture(scope="session")
 def yaml_parser():
     """Return a YamlParser instance."""
-    from parsers.yaml_parser import YamlParser
+    from src.parsers.yaml_parser import YamlParser
     return YamlParser()
 
 
 @pytest.fixture(scope="session")
 def json_parser():
     """Return a JsonParser instance."""
-    from parsers.json_parser import JsonParser
+    from src.parsers.json_parser import JsonParser
     return JsonParser()
 
 
@@ -198,19 +240,19 @@ def make_issue():
 @pytest.fixture(scope="session")
 def analyzer(rules_dir):
     """Return a RedTeamAnalyzer loaded with the real rule catalog."""
-    from core.red_team.analyzer import RedTeamAnalyzer
+    from src.core.red_team.analyzer import RedTeamAnalyzer
     return RedTeamAnalyzer(rules_dir=rules_dir)
 
 
 @pytest.fixture(scope="session")
 def remediator(templates_dir):
     """Return a BlueTeamRemediator loaded with the real template catalog."""
-    from core.blue_team.remediator import BlueTeamRemediator
+    from src.core.blue_team.remediator import BlueTeamRemediator
     return BlueTeamRemediator(templates_dir=templates_dir)
 
 
 @pytest.fixture(scope="session")
 def simulator():
     """Return a MonteCarloSimulator with a small iteration count for fast tests."""
-    from core.simulation.monte_carlo import MonteCarloSimulator
+    from src.core.simulation.monte_carlo import MonteCarloSimulator
     return MonteCarloSimulator(iterations=500, seed=42)

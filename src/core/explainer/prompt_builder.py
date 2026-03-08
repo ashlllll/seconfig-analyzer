@@ -47,12 +47,12 @@ _DEFAULT_PERSONA = _PERSONAS["junior_dev"]
 # ---------------------------------------------------------------------------
 
 _INTENT_PATTERNS: list[tuple[str, list[str]]] = [
-    ("explain_issue",    [r"\bwhy\b", r"\breason\b", r"\bcause\b", r"\bwhat is\b", r"\bexplain\b"]),
     ("why_critical",     [r"\bcritical\b", r"\bsever\b", r"\bimportant\b", r"\bdangerous\b"]),
+    ("risk_explanation", [r"\brisk\b", r"\bscore\b", r"\bsimulat\b", r"\bmonte carlo\b", r"\bprobab\b"]),
+    ("summary",          [r"\bsummar\w*\b", r"\boverview\b", r"\boverall\b", r"\btotal\b"]),
     ("how_to_fix",       [r"\bfix\b", r"\bsolv\b", r"\bremediat\b", r"\bhow\b", r"\bstep\b"]),
     ("compare_options",  [r"\bcompar\b", r"\bvs\b", r"\balternativ\b", r"\bdifferen\b"]),
-    ("risk_explanation", [r"\brisk\b", r"\bscore\b", r"\bsimulat\b", r"\bmonte carlo\b", r"\bprobab\b"]),
-    ("summary",          [r"\bsummar\b", r"\boverview\b", r"\boverall\b", r"\btotal\b"]),
+    ("explain_issue",    [r"\bwhy\b", r"\breason\b", r"\bcause\b", r"\bexplain\b"]),
 ]
 
 

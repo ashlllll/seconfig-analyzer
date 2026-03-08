@@ -78,6 +78,20 @@ class ParserFactory:
         return file_name.lower()
 
     @staticmethod
+    def get_parser_for_file(file_name: str) -> BaseParser:
+        """
+        Return a parser instance based on filename/extension.
+
+        Args:
+            file_name: Filename such as 'config.env' or 'app.yaml'
+
+        Returns:
+            An instance of the appropriate parser
+        """
+        file_type = ParserFactory.get_file_type_from_name(file_name)
+        return ParserFactory.get_parser(file_type)
+
+    @staticmethod
     def is_supported(file_name: str) -> bool:
         """
         Check if a file is supported based on its name.

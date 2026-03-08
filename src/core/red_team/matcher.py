@@ -54,7 +54,17 @@ class Matcher:
         """
         if pattern not in self._compiled_cache:
             try:
-                self._compiled_cache[pattern] = re.compile(pattern)
+                flags = 0
+                normalized = pattern
+
+                # Some catalog regexes embed (?i) mid-pattern, which Python
+                # rejects. Normalize by stripping inline case flags and using
+                # IGNORECASE globally.
+                if "(?i)" in normalized:
+                    flags |= re.IGNORECASE
+                    normalized = normalized.replace("(?i)", "")
+
+                self._compiled_cache[pattern] = re.compile(normalized, flags)
             except re.error as e:
                 raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
         return self._compiled_cache[pattern]
@@ -76,19 +86,35 @@ class Matcher:
         Returns:
             MatchResult if any pattern matches, None otherwise
         """
+        # Try original line first, then normalized variants to support
+        # JSON/YAML key quoting and ":" assignments.
+        candidates = [line]
+
+        no_quotes = line.replace('"', '').replace("'", "")
+        if no_quotes != line:
+            candidates.append(no_quotes)
+
+        with_equals = line.replace(":", "=")
+        if with_equals != line:
+            candidates.append(with_equals)
+
+        no_quotes_equals = no_quotes.replace(":", "=")
+        if no_quotes_equals not in candidates:
+            candidates.append(no_quotes_equals)
+
         for pattern in patterns:
             compiled = self.compile_pattern(pattern)
-            match = compiled.search(line)
-
-            if match:
-                return MatchResult(
-                    line_number=line_number,
-                    line_content=line,
-                    matched_text=match.group(0),
-                    column_start=match.start(),
-                    column_end=match.end(),
-                    pattern_used=pattern,
-                )
+            for candidate in candidates:
+                match = compiled.search(candidate)
+                if match:
+                    return MatchResult(
+                        line_number=line_number,
+                        line_content=line,
+                        matched_text=match.group(0),
+                        column_start=match.start() if candidate == line else 0,
+                        column_end=match.end() if candidate == line else len(line),
+                        pattern_used=pattern,
+                    )
 
         return None
 

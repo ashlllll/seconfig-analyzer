@@ -160,3 +160,18 @@ class ProbabilityDistribution:
         beta = max(0.1, (1.0 - mean) * common)
 
         return alpha, beta
+
+
+class ProbabilitySampler(ProbabilityDistribution):
+    """
+    Backward-compatible single-value sampler used by legacy tests.
+    """
+
+    def sample_beta(self, mean: float, std: float) -> float:  # type: ignore[override]
+        return float(super().sample_beta(mean=mean, std=std, size=1)[0])
+
+    def sample_normal(self, mean: float, std: float) -> float:  # type: ignore[override]
+        return float(super().sample_normal(mean=mean, std=std, size=1)[0])
+
+    def sample_uniform(self) -> float:  # type: ignore[override]
+        return float(super().sample_uniform(size=1)[0])

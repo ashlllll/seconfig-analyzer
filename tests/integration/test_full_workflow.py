@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 
 def get_service(rules_dir, templates_dir, iterations=200):
-    from services.analysis_service import AnalysisService
+    from src.services.analysis_service import AnalysisService
     return AnalysisService(
         rules_dir=rules_dir,
         templates_dir=templates_dir,
@@ -18,7 +18,7 @@ def get_service(rules_dir, templates_dir, iterations=200):
 
 
 def parse_file(filepath):
-    from parsers.parser_factory import ParserFactory
+    from src.parsers.parser_factory import ParserFactory
     ext = filepath.rsplit('.', 1)[-1].lower()
     parser = ParserFactory.get_parser(ext)
     with open(filepath, 'r', encoding='utf-8') as f:

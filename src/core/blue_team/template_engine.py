@@ -59,19 +59,17 @@ class TemplateEngine:
             self._load_template_file(file_path)
 
     def _load_template_file(self, file_path: str):
-        """Load a single YAML template file."""
+        """Load one YAML template file, supporting multi-document YAML."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-
-            if not data or "templates" not in data:
-                return
-
-            for template in data["templates"]:
-                template_id = template.get("id")
-                if template_id:
-                    self.templates[template_id] = template
-
+                docs = yaml.safe_load_all(f)
+                for doc in docs:
+                    if not doc or "templates" not in doc:
+                        continue
+                    for template in doc["templates"]:
+                        template_id = template.get("id")
+                        if template_id:
+                            self.templates[template_id] = template
         except (yaml.YAMLError, OSError):
             pass  # Skip malformed template files
 

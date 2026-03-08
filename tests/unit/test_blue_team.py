@@ -3,7 +3,6 @@ Unit tests for the Blue Team engine.
 Tests: TemplateLoader, TemplateEngine, FixValidator, BlueTeamRemediator
 """
 
-import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -21,6 +20,12 @@ class TestTemplateLoader:
         assert loader is not None
 
     def test_loads_all_templates(self, templates_dir):
+        """
+        Tests that all templates are loaded correctly.
+
+        Given a valid templates directory, all 23 templates should be loaded into the
+        TemplateLoader instance.
+        """
         from templates.template_loader import TemplateLoader
         loader = TemplateLoader(templates_dir)
         templates = loader.load_all_templates()
@@ -126,7 +131,7 @@ class TestBlueTeamRemediator:
             }
 
     def _get_remediator(self, templates_dir):
-        from core.blue_team.remediator import BlueTeamRemediator
+        from src.core.blue_team.remediator import BlueTeamRemediator
         return BlueTeamRemediator(templates_dir=templates_dir)
 
     def test_remediator_imports(self, templates_dir):
@@ -225,18 +230,18 @@ class TestBlueTeamRemediator:
 class TestFixValidator:
 
     def test_validator_imports(self):
-        from core.blue_team.validator import FixValidator
+        from src.core.blue_team.validator import FixValidator
         v = FixValidator()
         assert v is not None
 
     def test_valid_env_var_reference_passes(self):
-        from core.blue_team.validator import FixValidator
+        from src.core.blue_team.validator import FixValidator
         v = FixValidator()
         is_valid, error = v.validate_syntax("DATABASE_PASSWORD=${DATABASE_PASSWORD}", "env")
         assert is_valid is True
 
     def test_empty_fixed_code_fails(self):
-        from core.blue_team.validator import FixValidator
+        from src.core.blue_team.validator import FixValidator
         v = FixValidator()
         # validate_syntax skips blank lines, so use the full validate() instead
         template = {"fix_strategy": "template_replacement", "validation": []}

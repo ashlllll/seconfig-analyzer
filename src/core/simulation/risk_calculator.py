@@ -104,6 +104,18 @@ class RiskCalculator:
         reduction = ((risk_before - risk_after) / risk_before) * 100.0
         return round(max(0.0, min(100.0, reduction)), 2)
 
+    # Legacy compatibility methods used by older tests/callers.
+    def calculate_individual_risk(
+        self,
+        risk_profile: RiskProfile,
+        likelihood: float = None,
+    ) -> float:
+        likelihood_value = risk_profile.likelihood_mean if likelihood is None else likelihood
+        return self._compute_risk(risk_profile, likelihood_value)
+
+    def normalize_risk(self, total_risk: float, num_issues: int) -> float:
+        return self._normalize(total_risk, num_issues)
+
     def _compute_risk(self, rp: RiskProfile, likelihood: float) -> float:
         """
         Core risk computation formula.

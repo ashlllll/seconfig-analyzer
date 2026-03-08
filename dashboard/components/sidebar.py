@@ -15,6 +15,8 @@ Page name options:
 
 import streamlit as st
 
+from dashboard.components.ui_helpers import render_global_footer
+
 
 # ---------------------------------------------------------------------------
 # Navigation definition
@@ -440,3 +442,4 @@ def render_sidebar(current_page: str = "") -> None:
     _render_session_status(ss)
     _divider()
     _render_settings(ss)
+    render_global_footer()

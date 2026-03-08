@@ -8,10 +8,10 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from parsers.env_parser import EnvParser
-from parsers.yaml_parser import YamlParser
-from parsers.json_parser import JsonParser
-from parsers.parser_factory import ParserFactory
+from src.parsers.env_parser import EnvParser
+from src.parsers.yaml_parser import YamlParser
+from src.parsers.json_parser import JsonParser
+from src.parsers.parser_factory import ParserFactory
 
 
 # ══════════════════════════════════════════════

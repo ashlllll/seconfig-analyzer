@@ -287,6 +287,68 @@ def risk_label(score: float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Global footer
+# ---------------------------------------------------------------------------
+
+def render_global_footer() -> None:
+    """
+    Render a fixed footer for all dashboard pages.
+
+    Called once per page from the shared sidebar entry point.
+    """
+    st.markdown(
+        """
+        <style>
+        :root { --secconfig-footer-height: 62px; }
+
+        /* Keep page content visible above the fixed footer. */
+        [data-testid="stMainBlockContainer"] {
+            padding-bottom: calc(var(--secconfig-footer-height) + 20px) !important;
+        }
+
+        .secconfig-global-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999;
+            background: linear-gradient(90deg, rgba(12,17,24,0.97), rgba(6,9,13,0.97));
+            border-top: 1px solid #1a2838;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+
+        .secconfig-global-footer-inner {
+            text-align: center;
+            padding: 8px 16px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: #3d5166;
+            line-height: 1.55;
+            letter-spacing: 0.02em;
+        }
+
+        @media (max-width: 768px) {
+            :root { --secconfig-footer-height: 72px; }
+            .secconfig-global-footer-inner {
+                font-size: 9px;
+                line-height: 1.45;
+                padding: 8px 12px 9px;
+            }
+        }
+        </style>
+        <div class="secconfig-global-footer" aria-hidden="true">
+            <div class="secconfig-global-footer-inner">
+                SecConfig Analyzer · CN6000 Final Year Project · LSBF Singapore 2026<br>
+                Qian Zhu (S1034134) · Supervised by Dr. Preethi Kesavan
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Sidebar branding
 # ---------------------------------------------------------------------------
 

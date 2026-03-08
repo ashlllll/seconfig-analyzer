@@ -8,9 +8,9 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from parsers.env_parser import EnvParser
-from parsers.yaml_parser import YamlParser
-from parsers.json_parser import JsonParser
+from src.parsers.env_parser import EnvParser
+from src.parsers.yaml_parser import YamlParser
+from src.parsers.json_parser import JsonParser
 
 
 # ══════════════════════════════════════════════
@@ -20,25 +20,25 @@ from parsers.json_parser import JsonParser
 class TestRuleLoader:
 
     def test_loader_imports(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         assert loader is not None
 
     def test_loads_all_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         assert len(rules) == 23
 
     def test_rules_have_required_fields(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         for rule in rules:
             assert hasattr(rule, 'id') or 'id' in rule or rule.get('id') is not None
 
     def test_loads_credential_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         cred_rules = [r for r in rules if (
@@ -48,7 +48,7 @@ class TestRuleLoader:
         assert len(cred_rules) == 5
 
     def test_loads_encryption_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         enc_rules = [r for r in rules if (
@@ -58,7 +58,7 @@ class TestRuleLoader:
         assert len(enc_rules) == 5
 
     def test_loads_access_control_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         ac_rules = [r for r in rules if (
@@ -68,7 +68,7 @@ class TestRuleLoader:
         assert len(ac_rules) == 5
 
     def test_loads_logging_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         log_rules = [r for r in rules if (
@@ -78,7 +78,7 @@ class TestRuleLoader:
         assert len(log_rules) == 3
 
     def test_loads_baseline_rules(self, rules_dir):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader(rules_dir)
         rules = loader.load_all_rules()
         base_rules = [r for r in rules if (
@@ -88,7 +88,7 @@ class TestRuleLoader:
         assert len(base_rules) == 5
 
     def test_nonexistent_dir_raises(self):
-        from rules.rule_loader import RuleLoader
+        from src.rules.rule_loader import RuleLoader
         loader = RuleLoader("/nonexistent/path")
         with pytest.raises(Exception):
             loader.load_all_rules()
@@ -113,7 +113,7 @@ class TestRedTeamAnalyzer:
         return parser.parse(content, filename)
 
     def _get_analyzer(self, rules_dir):
-        from core.red_team.analyzer import RedTeamAnalyzer
+        from src.core.red_team.analyzer import RedTeamAnalyzer
         return RedTeamAnalyzer(rules_dir=rules_dir)
 
     # ── Detection: Credentials ──

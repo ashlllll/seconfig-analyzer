@@ -79,7 +79,13 @@ class RuleEngine:
         """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+                raw = f.read()
+
+            # Many catalog regex strings are single-quoted and use \'
+            # which is invalid in YAML single-quoted scalars. Normalize it
+            # to YAML's escaped single quote representation.
+            normalized = raw.replace("\\'", "''")
+            data = yaml.safe_load(normalized)
 
             if not data or "rules" not in data:
                 return []
