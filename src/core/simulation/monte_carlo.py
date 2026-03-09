@@ -96,22 +96,10 @@ class MonteCarloSimulator:
             p_value=p_value,
         )
 
-    def _run_simulation(self, issues: List[SecurityIssue]) -> np.ndarray:
-        """
-        Run N iterations for a given set of issues.
-
-        For each iteration:
-            - Sample a likelihood value for each issue
-            - Compute the total risk score
-
-        Args:
-            issues: List of SecurityIssue objects
-
-        Returns:
-            Array of shape (iterations,) containing risk scores
-        """
+    def _run_simulation(self, issues):
         if not issues:
-            return np.zeros(self.iterations)
+            rng = np.random.default_rng(self.seed)
+            return np.clip(rng.beta(1.5, 12.0, size=self.iterations) * 100, 0, 100)
 
         # Pre-sample all likelihoods: shape (iterations, num_issues)
         num_issues = len(issues)

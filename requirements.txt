@@ -20,11 +20,6 @@ plotly
 # Statistics & Scientific Computing
 scipy
 
-# Testing
-pytest
-pytest-cov
-pytest-mock
-
 # Code Quality
 black
 flake8

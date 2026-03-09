@@ -164,7 +164,7 @@ if not st.session_state.fixes_generated:
                         })
                         mock_fixes.append({
                             "fix_id": f"FIX-{i+1:03d}",
-                            "issue_id": f"ISSUE-{i+1:03d}",
+                            "issue_id": _get(issue, "issue_id", f"ISSUE-{i+1:03d}"),
                             "issue_title": _get(issue, "title", "Unknown"),
                             "rule_id": rule_id,
                             "validation_status": "validated",

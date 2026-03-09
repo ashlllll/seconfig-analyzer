@@ -233,7 +233,7 @@ with tab1:
         ])
         st.dataframe(cat_df, use_container_width=True, hide_index=True)
 
-    from dashboard.components.chart_components import severity_donut, category_bar
+    from dashboard.components.chart_adapter import severity_donut, category_bar
     c1, c2 = st.columns(2)
     with c1:
         if sev_counts:
@@ -279,7 +279,7 @@ with tab2:
 # Tab 3 — Risk
 with tab3:
     if sim_res:
-        from dashboard.components.chart_components import mc_histogram, risk_box_plot
+        from dashboard.components.chart_adapter import mc_histogram, risk_box_plot
 
         if isinstance(sim_res, dict):
             bd = sim_res["before"]["data"]
@@ -288,10 +288,17 @@ with tab3:
             bd = sim_res.before_remediation.distribution
             ad = sim_res.after_remediation.distribution
 
-        st.plotly_chart(
-            mc_histogram(bd, ad, sim_before, sim_after, height=320),
-            use_container_width=True
-        )
+        chart_l, chart_r = st.columns([3, 2])
+        with chart_l:
+            st.plotly_chart(
+                mc_histogram(bd, ad, sim_before, sim_after, height=320),
+                use_container_width=True
+            )
+        with chart_r:
+            st.plotly_chart(
+                risk_box_plot(bd, ad, height=320),
+                use_container_width=True
+            )
 
         col_r1, col_r2 = st.columns(2)
         with col_r1:
@@ -307,7 +314,7 @@ with tab3:
 
 # Tab 4 — NIST
 with tab4:
-    from dashboard.components.chart_components import nist_radar
+    from dashboard.components.chart_adapter import nist_radar
 
     col_nc1, col_nc2 = st.columns([2, 3])
     with col_nc1:

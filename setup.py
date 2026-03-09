@@ -21,9 +21,6 @@ setup(
     extras_require={
         "llm": ["openai==1.12.0"],
         "dev": [
-            "pytest==8.0.0",
-            "pytest-cov==4.1.0",
-            "pytest-mock==3.12.0",
             "black==24.1.1",
             "flake8==7.0.0",
         ],

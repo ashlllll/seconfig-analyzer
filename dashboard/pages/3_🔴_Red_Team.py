@@ -81,6 +81,14 @@ if not st.session_state.analysis_ran:
                     st.session_state.config_file  = config
                     st.session_state.issues        = issues
                     st.session_state.analysis_ran  = True
+                    # Reset downstream artifacts so fixes/simulation always match
+                    # the latest detected issue set.
+                    st.session_state.fixes = []
+                    st.session_state.fixes_generated = False
+                    st.session_state.selected_fix_ids = set()
+                    st.session_state.simulation_ran = False
+                    st.session_state.simulation_result = None
+                    st.session_state.report = None
                     st.rerun()
 
                 except Exception as exc:
@@ -133,6 +141,13 @@ if not st.session_state.analysis_ran:
                     st.session_state.issues       = mock_issues
                     st.session_state.config_file  = None
                     st.session_state.analysis_ran = True
+                    # Keep downstream state consistent in demo mode as well.
+                    st.session_state.fixes = []
+                    st.session_state.fixes_generated = False
+                    st.session_state.selected_fix_ids = set()
+                    st.session_state.simulation_ran = False
+                    st.session_state.simulation_result = None
+                    st.session_state.report = None
                     st.rerun()
 
     with col_info:
@@ -210,7 +225,7 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Charts
-    from dashboard.components.chart_components import severity_donut, category_bar
+    from dashboard.components.chart_adapter import severity_donut, category_bar
 
     chart_col1, chart_col2 = st.columns(2)
     with chart_col1:
@@ -319,4 +334,10 @@ else:
         if st.button("🔄 Re-run Analysis", use_container_width=True):
             st.session_state.analysis_ran = False
             st.session_state.issues = []
+            st.session_state.fixes = []
+            st.session_state.fixes_generated = False
+            st.session_state.selected_fix_ids = set()
+            st.session_state.simulation_ran = False
+            st.session_state.simulation_result = None
+            st.session_state.report = None
             st.rerun()

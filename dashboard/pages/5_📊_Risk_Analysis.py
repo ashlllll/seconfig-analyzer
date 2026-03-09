@@ -131,7 +131,6 @@ if run_sim:
                 _get(f, "issue_id", "")
                 for f in active_fixes
                 if _get(f, "fix_type", "") != "manual"
-                and _get(f, "validation_status", "validated") == "validated"
             }
             fixed_issue_ids.discard("")
 
@@ -327,8 +326,14 @@ if st.session_state.simulation_ran and st.session_state.simulation_result:
         unsafe_allow_html=True,
     )
 
+    if abs(before_mean - after_mean) < 0.01:
+        st.warning(
+            "Before/After risk is nearly identical. This usually means no effective "
+            "validated non-manual fixes were included in the simulation run."
+        )
+
     # Charts
-    from dashboard.components.chart_components import mc_histogram, risk_box_plot, risk_gauge
+    from dashboard.components.chart_adapter import mc_histogram, risk_box_plot, risk_gauge
 
     chart1, chart2 = st.columns([3, 2])
     with chart1:

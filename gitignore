@@ -28,8 +28,7 @@ secrets.yaml
 *.swp
 *.swo
 
-# Testing
-.pytest_cache/
+# Test artifacts
 .coverage
 htmlcov/
 coverage.xml
