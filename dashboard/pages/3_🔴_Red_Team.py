@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.components.sidebar import render_sidebar
+from dashboard.components.ui_helpers import _attr as _get
 
 st.set_page_config(
     page_title="Red Team — SecConfig",
@@ -28,11 +29,6 @@ if css_path.exists():
 
 render_sidebar(current_page="Red Team")
 
-# Guard — need uploaded file
-for key, val in [("raw_content",""),("file_name",""),("file_type",""),
-                  ("issues",[]),("analysis_ran",False)]:
-    if key not in st.session_state:
-        st.session_state[key] = val
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -171,11 +167,6 @@ else:
     # ── Results ────────────────────────────────────────────────────────────────
     issues = st.session_state.issues
 
-    # Normalise: issues can be dicts (mock) or objects
-    def _get(issue, key, default=""):
-        if isinstance(issue, dict):
-            return issue.get(key, default)
-        return getattr(issue, key, default)
 
     # Summary metrics
     severities = [_get(i, "severity", "info").lower() for i in issues]

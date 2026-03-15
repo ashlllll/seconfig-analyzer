@@ -2,6 +2,7 @@
 Rule Engine
 Loads security rules from YAML and applies them to parsed config files.
 """
+import logging
 import os
 import uuid
 from datetime import datetime
@@ -13,6 +14,8 @@ from .matcher import Matcher, MatchResult
 from ...models.config_model import ConfigFile
 from ...models.issue_model import SecurityIssue
 from ...models.risk_model import RiskProfile
+
+log = logging.getLogger(__name__)
 
 
 class RuleLoadError(Exception):
@@ -64,8 +67,14 @@ class RuleEngine:
 
         for file_name in sorted(yaml_files):
             file_path = os.path.join(self.rules_dir, file_name)
-            rules = self._load_rule_file(file_path)
-            self.rules.extend(rules)
+            try:
+                rules = self._load_rule_file(file_path)
+                self.rules.extend(rules)
+                log.debug("Loaded %d rule(s) from '%s'.", len(rules), file_name)
+            except RuleLoadError as e:
+                # A single bad file must not abort the entire catalog load.
+                # Log a warning and continue so all valid rules are applied.
+                log.warning("Skipping rule file '%s': %s", file_name, e)
 
     def _load_rule_file(self, file_path: str) -> List[Dict[str, Any]]:
         """

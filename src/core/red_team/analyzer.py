@@ -102,32 +102,42 @@ class RedTeamAnalyzer:
         self, issues: List[SecurityIssue]
     ) -> Dict[str, List[SecurityIssue]]:
         """Group issues by severity level."""
-        grouped: Dict[str, List[SecurityIssue]] = {
-            "critical": [],
-            "high": [],
-            "medium": [],
-            "low": [],
-            "info": [],
-        }
-        for issue in issues:
-            if issue.severity in grouped:
-                grouped[issue.severity].append(issue)
-        return grouped
+        return self._group_by_field(
+            issues, "severity",
+            ["critical", "high", "medium", "low", "info"],
+        )
 
     def group_by_category(
         self, issues: List[SecurityIssue]
     ) -> Dict[str, List[SecurityIssue]]:
         """Group issues by category."""
-        grouped: Dict[str, List[SecurityIssue]] = {
-            "credentials": [],
-            "encryption": [],
-            "access_control": [],
-            "logging": [],
-            "baseline": [],
-        }
+        return self._group_by_field(
+            issues, "category",
+            ["credentials", "encryption", "access_control", "logging", "baseline"],
+        )
+
+    def _group_by_field(
+        self,
+        issues: List[SecurityIssue],
+        field: str,
+        keys: List[str],
+    ) -> Dict[str, List[SecurityIssue]]:
+        """
+        Generic grouping helper — avoids duplicate list-partition logic.
+
+        Args:
+            issues: Issues to group.
+            field:  Attribute name on SecurityIssue to group by.
+            keys:   Allowed bucket names; issues with unknown values are dropped.
+
+        Returns:
+            Dict mapping each key to a (possibly empty) list of matching issues.
+        """
+        grouped: Dict[str, List[SecurityIssue]] = {k: [] for k in keys}
         for issue in issues:
-            if issue.category in grouped:
-                grouped[issue.category].append(issue)
+            val = getattr(issue, field, None)
+            if val in grouped:
+                grouped[val].append(issue)
         return grouped
 
     @property

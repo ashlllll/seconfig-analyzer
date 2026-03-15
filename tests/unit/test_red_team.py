@@ -93,6 +93,29 @@ class TestRuleLoader:
         with pytest.raises(Exception):
             loader.load_all_rules()
 
+    def test_single_bad_yaml_does_not_abort_load(self, rules_dir, tmp_path):
+        """
+        If one rule file is malformed, the engine must still load the rules
+        from all other files rather than aborting entirely.
+
+        This is a regression test for the fix in rule_engine.py that changed
+        per-file failures from fatal RuleLoadError to logged warnings.
+        """
+        import shutil
+        # Copy the real catalog to a temp dir and inject one malformed file
+        temp_rules = tmp_path / "rules"
+        shutil.copytree(rules_dir, str(temp_rules))
+        bad_file = temp_rules / "zzz_bad_rule.yaml"
+        bad_file.write_text("rules:\n  - {{{invalid yaml\n", encoding="utf-8")
+
+        from src.core.red_team.rule_engine import RuleEngine
+        # Must not raise — bad file is skipped, valid rules are loaded
+        engine = RuleEngine(rules_dir=str(temp_rules))
+        assert engine.rule_count >= 23, (
+            "A single malformed rule file should not prevent the other "
+            "23 valid rules from being loaded."
+        )
+
 
 # ══════════════════════════════════════════════
 # RuleEngine / RedTeamAnalyzer Tests
@@ -282,3 +305,80 @@ class TestRedTeamAnalyzer:
             s = i.severity if hasattr(i, 'severity') else i.get('severity', 'info')
             severities.append(severity_order.get(s, 0))
         assert severities == sorted(severities, reverse=True)
+
+
+# ══════════════════════════════════════════════
+# Matcher tests — YAML colon rewrite behaviour
+# ══════════════════════════════════════════════
+
+class TestMatcherColonRewrite:
+    """
+    Regression tests for the YAML colon→equals normalisation in Matcher.
+
+    The old implementation used ``line.replace(':', '=')`` globally, which
+    corrupted URLs (turning https://example.com into https=//example.com).
+    The fix restricts the rewrite to lines that look like  ``key: value``.
+    """
+
+    def _get_matcher(self):
+        from src.core.red_team.matcher import Matcher
+        return Matcher()
+
+    def test_url_value_is_not_rewritten(self):
+        """
+        A config line whose value contains a URL must not be corrupted.
+        'database_url: https://localhost/db' should NOT become
+        'database_url= https=//localhost/db'.
+        """
+        from src.core.red_team.matcher import Matcher
+        m = Matcher()
+        # Pattern that matches DATABASE_URL=... but not https://
+        patterns = [r'(?i)DATABASE_URL\s*[=:]\s*(?!.*\$\{).*://']
+        result = m.match_line(
+            "database_url: https://localhost:5432/mydb",
+            line_number=1,
+            patterns=patterns,
+        )
+        # The match is valid here (it IS a database URL),
+        # but more importantly the line must not crash and the
+        # matched text must not contain a mangled URL like https=//
+        if result:
+            assert "https=//" not in result.matched_text
+
+    def test_simple_key_value_yaml_is_rewritten(self):
+        """
+        A plain 'key: value' YAML line should be normalised to 'key=value'
+        so that env-style patterns can match it.
+        """
+        from src.core.red_team.matcher import Matcher
+        m = Matcher()
+        # Pattern expects KEY=value style
+        patterns = [r'(?i)debug\s*=\s*true']
+        result = m.match_line(
+            "debug: true",
+            line_number=1,
+            patterns=patterns,
+        )
+        assert result is not None, (
+            "Matcher should rewrite 'debug: true' to 'debug=true' so "
+            "env-style patterns can match YAML config lines."
+        )
+
+    def test_url_in_value_not_matched_as_key(self):
+        """
+        Lines like 'api_endpoint: https://api.example.com' must not
+        produce spurious matches for patterns expecting key=https or similar.
+        """
+        from src.core.red_team.matcher import Matcher
+        m = Matcher()
+        # This pattern should ONLY match if 'https' appears as a key, not a URL value
+        patterns = [r'(?i)^https\s*=']
+        result = m.match_line(
+            "api_endpoint: https://api.example.com",
+            line_number=1,
+            patterns=patterns,
+        )
+        assert result is None, (
+            "A URL value should not be rewritten in a way that makes "
+            "'https' look like a config key."
+        )

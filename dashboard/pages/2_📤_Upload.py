@@ -29,13 +29,7 @@ if css_path.exists():
 
 render_sidebar(current_page="Upload")
 
-# ── Session state guard ────────────────────────────────────────────────────────
-for key, val in [("raw_content",""),("file_name",""),("file_type",""),
-                  ("config_file",None),("issues",[]),("fixes",[]),
-                  ("analysis_ran",False),("fixes_generated",False),
-                  ("simulation_ran",False),("simulation_result",None)]:
-    if key not in st.session_state:
-        st.session_state[key] = val
+# Session state defaults are handled centrally by render_sidebar().
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown(

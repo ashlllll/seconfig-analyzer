@@ -33,28 +33,9 @@ if css_path.exists():
 
 render_sidebar(current_page="Home")
 
-# ── Session state defaults ────────────────────────────────────────────────────
-defaults = {
-    "config_file":        None,
-    "raw_content":        "",
-    "file_name":          "",
-    "file_type":          "",
-    "issues":             [],
-    "fixes":              [],
-    "selected_fix_ids":   set(),
-    "simulation_result":  None,
-    "report":             None,
-    "analysis_ran":       False,
-    "fixes_generated":    False,
-    "simulation_ran":     False,
-    "llm_enabled":        False,
-    "llm_api_key":        "",
-    "chat_history":       [],
-    "user_background":    "junior_dev",
-}
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
+# Session state is initialised centrally in render_sidebar().
+# Individual pages may add page-specific keys, but the canonical
+# defaults for the full workflow live in sidebar.py only.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — HERO

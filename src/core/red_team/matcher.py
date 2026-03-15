@@ -86,21 +86,30 @@ class Matcher:
         Returns:
             MatchResult if any pattern matches, None otherwise
         """
-        # Try original line first, then normalized variants to support
+        # Try original line first, then normalised variants to support
         # JSON/YAML key quoting and ":" assignments.
         candidates = [line]
 
+        # Strip surrounding quotes (handles JSON "key": "value" style)
         no_quotes = line.replace('"', '').replace("'", "")
         if no_quotes != line:
             candidates.append(no_quotes)
 
-        with_equals = line.replace(":", "=")
-        if with_equals != line:
-            candidates.append(with_equals)
+        # Rewrite YAML-style "key: value" → "key=value", but ONLY for lines
+        # that look like a simple config assignment.  A blanket replace(":"," =")
+        # would corrupt URLs ("https://..."), timestamps, and port numbers.
+        _kv_match = re.match(
+            r'^(\s*(?:export\s+)?[A-Za-z_]\w*)\s*:\s*(.*)$', line
+        )
+        if _kv_match:
+            with_equals = f"{_kv_match.group(1)}={_kv_match.group(2)}"
+            if with_equals not in candidates:
+                candidates.append(with_equals)
 
-        no_quotes_equals = no_quotes.replace(":", "=")
-        if no_quotes_equals not in candidates:
-            candidates.append(no_quotes_equals)
+            # Also try the quote-stripped variant of the rewritten form
+            no_quotes_equals = with_equals.replace('"', '').replace("'", "")
+            if no_quotes_equals not in candidates:
+                candidates.append(no_quotes_equals)
 
         for pattern in patterns:
             compiled = self.compile_pattern(pattern)

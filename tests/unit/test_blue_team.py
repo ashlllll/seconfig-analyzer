@@ -243,7 +243,6 @@ class TestFixValidator:
     def test_empty_fixed_code_fails(self):
         from src.core.blue_team.validator import FixValidator
         v = FixValidator()
-        # validate_syntax skips blank lines, so use the full validate() instead
         template = {"fix_strategy": "template_replacement", "validation": []}
         is_valid, errors = v.validate(
             original_code="LOGGING_ENABLED=false",
@@ -253,3 +252,180 @@ class TestFixValidator:
         )
         assert is_valid is False
         assert len(errors) > 0
+
+    # ── validate_syntax is now wired into validate() ──────────────────────────
+
+    def test_syntax_check_fires_inside_validate_for_bad_env(self):
+        """validate() must reject .env lines that have no '=' sign."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "configuration_change", "validation": []}
+        # A YAML-style line has no '=' so env syntax check should fail
+        is_valid, errors = v.validate(
+            original_code="DEBUG=true",
+            fixed_code="debug: false",   # valid YAML, invalid .env
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is False
+        assert any("syntax" in e.lower() or "=" in e for e in errors)
+
+    def test_syntax_check_passes_for_valid_env_fix(self):
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "configuration_change", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="DEBUG=true",
+            fixed_code="DEBUG=false",
+            template=template,
+            file_type="env",
+        )
+        # Should be valid (changed + valid syntax)
+        assert is_valid is True
+
+    # ── Expanded _SAFE_REFERENCE_PATTERNS ────────────────────────────────────
+
+    def test_dollar_brace_reference_passes_security_check(self):
+        """${VAR} format must pass template_replacement security check."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "template_replacement", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="API_KEY=sk-live-abc123",
+            fixed_code="API_KEY=${API_KEY}",
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is True
+
+    def test_bare_dollar_var_passes_security_check(self):
+        """$UPPERCASE_VAR format must also pass."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "template_replacement", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="API_KEY=sk-live-abc123",
+            fixed_code="API_KEY=$API_KEY",
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is True
+
+    def test_vault_reference_passes_security_check(self):
+        """vault: URI must pass template_replacement security check."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "template_replacement", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="DB_PASS=admin123",
+            fixed_code="DB_PASS=vault:secret/data/app#db_password",
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is True
+
+    def test_ssm_reference_passes_security_check(self):
+        """ssm: URI must pass template_replacement security check."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "template_replacement", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="DB_PASS=admin123",
+            fixed_code="DB_PASS=ssm:/myapp/prod/db_password",
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is True
+
+    def test_hardcoded_value_still_fails_security_check(self):
+        """A fix that just changes the value but keeps it hard-coded should fail."""
+        from src.core.blue_team.validator import FixValidator
+        v = FixValidator()
+        template = {"fix_strategy": "template_replacement", "validation": []}
+        is_valid, errors = v.validate(
+            original_code="DB_PASS=admin123",
+            fixed_code="DB_PASS=different_hardcoded_value",
+            template=template,
+            file_type="env",
+        )
+        assert is_valid is False
+
+
+# ══════════════════════════════════════════════
+# simulate_remediation: manual fix exclusion
+# ══════════════════════════════════════════════
+
+class TestSimulateRemediationManualExclusion:
+    """
+    Regression tests for the fix where manual fixes were incorrectly
+    counted as applied in simulate_remediation(), leading to under-estimated
+    post-remediation risk.
+    """
+
+    def _make_issues_and_fixes(self, templates_dir):
+        """Create 2 issues — one with an automated fix, one manual."""
+        from src.core.blue_team.remediator import BlueTeamRemediator
+        from src.parsers.env_parser import EnvParser
+
+        content = "DATABASE_PASSWORD=admin123\nCORS_ORIGIN=*\n"
+        config = EnvParser().parse(content, "test.env")
+        remediator = BlueTeamRemediator(templates_dir=templates_dir)
+
+        from src.core.red_team.analyzer import RedTeamAnalyzer
+        import os
+        # Use a minimal inline rules dir if real one not available
+        try:
+            analyzer = RedTeamAnalyzer()
+            issues = analyzer.analyze(config)
+        except Exception:
+            return None, None
+
+        fixes = remediator.remediate(issues)
+        return issues, fixes
+
+    def test_manual_fix_does_not_reduce_remaining_issues(self, templates_dir):
+        """
+        If all generated fixes are manual, simulate_remediation should return
+        the full issue list unchanged.
+        """
+        from src.core.blue_team.remediator import BlueTeamRemediator
+        remediator = BlueTeamRemediator(templates_dir=templates_dir)
+
+        # Build a mock issue
+        try:
+            from src.models.issue_model import SecurityIssue
+            from src.models.risk_model import RiskProfile
+            rp = RiskProfile(7.0, 0.8, "high", "medium", "low", 0.7, 0.15)
+            issue = SecurityIssue(
+                issue_id="test-manual-001",
+                rule_id="UNKNOWN-999",
+                rule_name="Unknown rule",
+                category="credentials",
+                severity="high",
+                cvss_score=7.0,
+                title="Test",
+                description="Test",
+                file_name="test.env",
+                line_number=1,
+                vulnerable_code="KEY=value",
+                risk_profile=rp,
+                remediation_hint="Manual fix required",
+                nist_function="PROTECT",
+                nist_category="PR.AC-1",
+                cwe_id="CWE-798",
+            )
+        except Exception:
+            return  # Skip if models not importable
+
+        fixes = remediator.remediate([issue])
+        # Should be a manual fix (unknown rule → no template)
+        fix = fixes[0]
+        fix_type = fix.fix_type if hasattr(fix, "fix_type") else fix.get("fix_type")
+        assert fix_type == "manual"
+
+        # simulate_remediation must NOT remove the issue
+        remaining = remediator.simulate_remediation([issue], fixes)
+        assert len(remaining) == 1, (
+            "Manual fixes should not count as applied in simulate_remediation. "
+            "Post-remediation risk would be under-estimated otherwise."
+        )

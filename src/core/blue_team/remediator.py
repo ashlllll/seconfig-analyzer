@@ -241,11 +241,15 @@ class BlueTeamRemediator:
         Returns:
             Issues that are NOT covered by any fix
         """
-        # Collect issue IDs that have a validated fix
+        # Collect issue IDs that have a validated, non-manual fix.
+        # Manual fixes provide guidance only — they do not actually
+        # modify the configuration, so they must not reduce the
+        # simulated post-remediation risk.
         fixed_issue_ids = {
             fix.issue_id
             for fix in fixes
             if fix.validation_status == "validated"
+            and fix.fix_type != "manual"
         }
 
         remaining = [
@@ -279,7 +283,7 @@ class BlueTeamRemediator:
             Estimated risk reduction as percentage (0-100)
         """
         confidence = template.get("metadata", {}).get("fix_confidence", 0.8)
-        base_risk = issue.risk_score if issue.risk_score else 50.0
+        base_risk = issue.risk_score if issue.risk_score is not None else 50.0
         return round(base_risk * confidence, 1)
 
     def get_summary(self, fixes: List[SecurityFix]) -> Dict:

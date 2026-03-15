@@ -2,11 +2,14 @@
 Template Engine
 Loads fix templates from YAML and renders them for specific issues.
 """
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional
 
 import yaml
+
+log = logging.getLogger(__name__)
 
 
 class TemplateLoadError(Exception):
@@ -70,8 +73,11 @@ class TemplateEngine:
                         template_id = template.get("id")
                         if template_id:
                             self.templates[template_id] = template
-        except (yaml.YAMLError, OSError):
-            pass  # Skip malformed template files
+        except (yaml.YAMLError, OSError) as e:
+            log.warning(
+                "Skipping malformed template file '%s': %s",
+                file_path, e,
+            )
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 

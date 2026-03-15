@@ -108,6 +108,38 @@ class TestProtectionService:
         remaining = svc.simulate_remediation(issues, fixes)
         assert len(remaining) < len(issues)
 
+    def test_simulate_remediation_manual_fixes_not_counted(self, rules_dir, templates_dir):
+        """
+        Manual fixes (fix_type='manual') must NOT reduce the remaining issue
+        count — they provide guidance only, they do not modify the config.
+        This is a regression test for the bug fixed in remediator.py where
+        manual fixes were incorrectly included in fixed_issue_ids.
+        """
+        from src.services.detection_service import DetectionService
+        from src.services.protection_service import ProtectionService
+        config = _make_config()
+        issues = DetectionService(rules_dir=rules_dir).detect_vulnerabilities(config)
+        svc = ProtectionService(templates_dir=templates_dir)
+        fixes = svc.generate_fixes(issues)
+
+        # Force all fixes to be manual + validated (worst case scenario)
+        for fix in fixes:
+            if hasattr(fix, 'fix_type'):
+                fix.fix_type = 'manual'
+            elif isinstance(fix, dict):
+                fix['fix_type'] = 'manual'
+            if hasattr(fix, 'validation_status'):
+                fix.validation_status = 'validated'
+            elif isinstance(fix, dict):
+                fix['validation_status'] = 'validated'
+
+        remaining = svc.simulate_remediation(issues, fixes)
+        # All issues should remain — manual fixes don't change the config
+        assert len(remaining) == len(issues), (
+            "Manual fixes must not be counted as applied in simulate_remediation. "
+            "Post-remediation risk simulation would be falsely optimistic otherwise."
+        )
+
 
 # ══════════════════════════════════════════════
 # SimulationService Tests

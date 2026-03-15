@@ -7,7 +7,7 @@ import numpy as np
 from typing import List, Tuple
 
 from .probability import ProbabilityDistribution
-from .risk_calculator import RiskCalculator
+from .risk_calculator import IMPACT_WEIGHTS, RiskCalculator
 from ...models.issue_model import SecurityIssue
 from ...models.risk_model import RiskDistribution, SimulationResult
 
@@ -128,10 +128,9 @@ class MonteCarloSimulator:
                 continue
 
             # Compute individual risk for all iterations at once
-            from .risk_calculator import IMPACT_WEIGHTS
-            c = IMPACT_WEIGHTS.get(rp.impact_confidentiality, 0.5)
+            c  = IMPACT_WEIGHTS.get(rp.impact_confidentiality, 0.5)
             ia = IMPACT_WEIGHTS.get(rp.impact_integrity, 0.5)
-            a = IMPACT_WEIGHTS.get(rp.impact_availability, 0.3)
+            a  = IMPACT_WEIGHTS.get(rp.impact_availability, 0.3)
             impact_factor = (c + ia + a) / 3.0
 
             individual_risks = (

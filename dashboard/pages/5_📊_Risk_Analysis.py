@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.components.sidebar import render_sidebar
+from dashboard.components.ui_helpers import _attr as _get
 
 st.set_page_config(
     page_title="Risk Analysis — SecConfig",
@@ -113,9 +114,6 @@ if run_sim:
 
             issues_before = st.session_state.issues
             fixes = st.session_state.fixes
-
-            def _get(o, k, d=""):
-                return o.get(k, d) if isinstance(o, dict) else getattr(o, k, d)
 
             # If user selected fixes in Blue Team page, simulate only those.
             selected_fix_ids = st.session_state.get("selected_fix_ids", set()) or set()

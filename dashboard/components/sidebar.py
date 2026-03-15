@@ -400,19 +400,24 @@ def render_sidebar(current_page: str = "") -> None:
             "Home" | "Upload" | "Red Team" | "Blue Team" |
             "Risk Analysis" | "AI Explainer" | "Reports"
     """
-    # Inject CSS (idempotent — Streamlit deduplicates markdown)
-    st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
+    # Inject CSS only once per session — Streamlit re-injects on every rerun
+    # by default, which is redundant and adds minor overhead.
+    if not st.session_state.get("_sidebar_css_injected"):
+        st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
+        st.session_state["_sidebar_css_injected"] = True
 
-    # Ensure all session keys exist before reading them
-    _defaults = {
+    # Ensure all session keys exist before reading them.
+    # Single source of truth — app.py no longer needs its own copy.
+    _SESSION_DEFAULTS = {
         "file_name": "", "file_type": "", "raw_content": "",
         "config_file": None, "issues": [], "fixes": [],
         "selected_fix_ids": set(), "simulation_result": None,
         "analysis_ran": False, "fixes_generated": False,
         "simulation_ran": False, "llm_enabled": False,
         "llm_api_key": "", "chat_history": [],
+        "user_background": "junior_dev", "report": None,
     }
-    for k, v in _defaults.items():
+    for k, v in _SESSION_DEFAULTS.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
@@ -423,13 +428,13 @@ def render_sidebar(current_page: str = "") -> None:
     has_analysis = bool(ss.get("analysis_ran") and ss.get("issues"))
 
     unlocked = {
-        "Home":          True,           # always accessible
-        "Upload":        True,           # always accessible
-        "Red Team":      has_file,       # need an uploaded file
-        "Blue Team":     has_analysis,   # need Red Team results
-        "Risk Analysis": has_analysis,   # need Red Team results
-        "AI Explainer":  has_analysis,   # need Red Team results
-        "Reports":       has_analysis,   # need Red Team results
+        "Home":          True,
+        "Upload":        True,
+        "Red Team":      has_file,
+        "Blue Team":     has_analysis,
+        "Risk Analysis": has_analysis,
+        "AI Explainer":  has_analysis,
+        "Reports":       has_analysis,
     }
 
     # Render all sections top to bottom

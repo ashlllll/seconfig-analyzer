@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.components.sidebar import render_sidebar
+from dashboard.components.ui_helpers import _attr as _get
 
 st.set_page_config(
     page_title="Blue Team — SecConfig",
@@ -61,8 +62,6 @@ if not st.session_state.analysis_ran and not st.session_state.issues:
 
 issues = st.session_state.issues
 
-def _get(obj, key, default=""):
-    return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
 
 # ── Generate fixes ─────────────────────────────────────────────────────────────
 if not st.session_state.fixes_generated:

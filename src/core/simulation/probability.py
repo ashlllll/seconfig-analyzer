@@ -162,16 +162,39 @@ class ProbabilityDistribution:
         return alpha, beta
 
 
-class ProbabilitySampler(ProbabilityDistribution):
+class ProbabilitySampler:
     """
-    Backward-compatible single-value sampler used by legacy tests.
+    Backward-compatible single-value sampler used by legacy tests and callers.
+
+    Wraps :class:`ProbabilityDistribution` via composition so the public
+    interface stays stable without requiring ``# type: ignore[override]``
+    hacks or fragile signature mismatches.
+
+    For new code, use :class:`ProbabilityDistribution` directly — it
+    produces vectorised NumPy arrays and is significantly faster.
     """
 
-    def sample_beta(self, mean: float, std: float) -> float:  # type: ignore[override]
-        return float(super().sample_beta(mean=mean, std=std, size=1)[0])
+    def __init__(self, seed: int = 42) -> None:
+        self._dist = ProbabilityDistribution(seed=seed)
 
-    def sample_normal(self, mean: float, std: float) -> float:  # type: ignore[override]
-        return float(super().sample_normal(mean=mean, std=std, size=1)[0])
+    def sample_beta(self, mean: float, std: float) -> float:
+        """Return a single Beta-distributed sample in [0, 1]."""
+        return float(self._dist.sample_beta(mean=mean, std=std, size=1)[0])
 
-    def sample_uniform(self) -> float:  # type: ignore[override]
-        return float(super().sample_uniform(size=1)[0])
+    def sample_normal(self, mean: float, std: float) -> float:
+        """Return a single Normal-distributed sample clipped to [0, 1]."""
+        return float(self._dist.sample_normal(mean=mean, std=std, size=1)[0])
+
+    def sample_uniform(self) -> float:
+        """Return a single Uniform sample in [0, 1]."""
+        return float(self._dist.sample_uniform(size=1)[0])
+
+    def moment_match_beta(self, mean: float, std: float) -> tuple:
+        """
+        Proxy to :meth:`ProbabilityDistribution.moment_match_beta`.
+
+        Kept here so tests that instantiate ``ProbabilitySampler`` and call
+        ``moment_match_beta`` do not break after the class was refactored
+        from inheritance to composition.
+        """
+        return self._dist.moment_match_beta(mean=mean, std=std)

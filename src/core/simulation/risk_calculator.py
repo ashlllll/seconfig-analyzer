@@ -2,14 +2,16 @@
 Risk Calculator
 Computes deterministic and probabilistic risk scores for security issues.
 """
+import warnings
 import numpy as np
-from typing import List
+from typing import List, Optional
 
 from ...models.issue_model import SecurityIssue
 from ...models.risk_model import RiskProfile
 
 
-# CIA impact weights
+# CIA impact weights — all three dimensions use the same default (0.5)
+# so that unknown values produce a symmetric, moderate impact estimate.
 IMPACT_WEIGHTS = {
     "high":   1.0,
     "medium": 0.6,
@@ -30,14 +32,14 @@ class RiskCalculator:
     def calculate_issue_risk(
         self,
         issue: SecurityIssue,
-        likelihood_override: float = None,
+        likelihood_override: Optional[float] = None,
     ) -> float:
         """
         Calculate risk score for a single issue.
 
         Formula:
             risk = base_severity × exploitability × impact_factor × likelihood
-            normalized to 0-100
+            (raw value, not yet normalised to 0-100)
 
         Args:
             issue:               SecurityIssue object
@@ -45,21 +47,22 @@ class RiskCalculator:
                                  of the profile mean (used in Monte Carlo)
 
         Returns:
-            Risk score in range [0, 100]
+            Raw risk value (pass to _normalize for a 0-100 score)
         """
         rp = issue.risk_profile
         if rp is None:
             return 0.0
 
-        likelihood = likelihood_override if likelihood_override is not None \
+        likelihood = (
+            likelihood_override if likelihood_override is not None
             else rp.likelihood_mean
-
+        )
         return self._compute_risk(rp, likelihood)
 
     def calculate_total_risk(
         self,
         issues: List[SecurityIssue],
-        likelihood_overrides: List[float] = None,
+        likelihood_overrides: Optional[List[float]] = None,
     ) -> float:
         """
         Calculate the aggregate risk score for a list of issues.
@@ -69,17 +72,16 @@ class RiskCalculator:
             likelihood_overrides: Optional per-issue likelihood values
 
         Returns:
-            Normalized total risk score in [0, 100]
+            Normalised total risk score in [0, 100]
         """
         if not issues:
             return 0.0
 
         total = 0.0
-
-        for i, issue in enumerate(issues):
+        for idx, issue in enumerate(issues):
             override = None
-            if likelihood_overrides and i < len(likelihood_overrides):
-                override = likelihood_overrides[i]
+            if likelihood_overrides and idx < len(likelihood_overrides):
+                override = likelihood_overrides[idx]
             total += self.calculate_issue_risk(issue, override)
 
         return self._normalize(total, len(issues))
@@ -104,17 +106,43 @@ class RiskCalculator:
         reduction = ((risk_before - risk_after) / risk_before) * 100.0
         return round(max(0.0, min(100.0, reduction)), 2)
 
-    # Legacy compatibility methods used by older tests/callers.
+    # ── Legacy compatibility methods ──────────────────────────────────────────
+    # Kept for backward compatibility with older tests. Use the canonical
+    # methods above in all new code.
+
     def calculate_individual_risk(
         self,
         risk_profile: RiskProfile,
-        likelihood: float = None,
+        likelihood: Optional[float] = None,
     ) -> float:
-        likelihood_value = risk_profile.likelihood_mean if likelihood is None else likelihood
+        """
+        .. deprecated::
+            Use :meth:`calculate_issue_risk` instead.
+        """
+        warnings.warn(
+            "calculate_individual_risk() is deprecated; "
+            "use calculate_issue_risk() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        likelihood_value = (
+            risk_profile.likelihood_mean if likelihood is None else likelihood
+        )
         return self._compute_risk(risk_profile, likelihood_value)
 
     def normalize_risk(self, total_risk: float, num_issues: int) -> float:
+        """
+        .. deprecated::
+            Use :meth:`_normalize` directly or ``calculate_total_risk`` instead.
+        """
+        warnings.warn(
+            "normalize_risk() is deprecated; use _normalize() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._normalize(total_risk, num_issues)
+
+    # ── Core computation ──────────────────────────────────────────────────────
 
     def _compute_risk(self, rp: RiskProfile, likelihood: float) -> float:
         """
@@ -125,38 +153,37 @@ class RiskCalculator:
             likelihood: Sampled or mean likelihood value (0-1)
 
         Returns:
-            Raw risk value (before normalization)
+            Raw risk value (before normalisation)
         """
-        c = IMPACT_WEIGHTS.get(rp.impact_confidentiality, 0.5)
-        i = IMPACT_WEIGHTS.get(rp.impact_integrity, 0.5)
-        a = IMPACT_WEIGHTS.get(rp.impact_availability, 0.3)
-        impact_factor = (c + i + a) / 3.0
+        conf  = IMPACT_WEIGHTS.get(rp.impact_confidentiality, 0.5)
+        integ = IMPACT_WEIGHTS.get(rp.impact_integrity, 0.5)
+        avail = IMPACT_WEIGHTS.get(rp.impact_availability, 0.5)
+        impact_factor = (conf + integ + avail) / 3.0
 
-        raw = (
-            rp.base_severity *
-            rp.exploitability *
-            impact_factor *
-            float(np.clip(likelihood, 0.0, 1.0))
+        return (
+            rp.base_severity
+            * rp.exploitability
+            * impact_factor
+            * float(np.clip(likelihood, 0.0, 1.0))
         )
-
-        return raw
 
     def _normalize(self, total_raw: float, num_issues: int) -> float:
         """
-        Normalize total raw risk to 0-100 scale.
+        Normalise total raw risk to a 0-100 scale.
 
-        Max possible raw risk per issue = 10 × 1 × 1 × 1 = 10
+        Max possible raw risk per issue = 10 (severity) × 1 (exploit)
+        × 1 (impact) × 1 (likelihood) = 10.
 
         Args:
             total_raw:  Sum of raw risk scores
             num_issues: Number of issues
 
         Returns:
-            Normalized score in [0, 100]
+            Normalised score in [0, 100]
         """
         if num_issues == 0:
             return 0.0
 
         max_possible = num_issues * 10.0
-        normalized = (total_raw / max_possible) * 100.0
-        return round(float(np.clip(normalized, 0.0, 100.0)), 2)
+        normalised = (total_raw / max_possible) * 100.0
+        return round(float(np.clip(normalised, 0.0, 100.0)), 2)

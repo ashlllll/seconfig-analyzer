@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.components.sidebar import render_sidebar
+from dashboard.components.ui_helpers import _attr as _get
 
 st.set_page_config(
     page_title="AI Explainer — SecConfig",
@@ -149,9 +150,6 @@ else:
         issues  = st.session_state.issues
         fixes   = st.session_state.fixes
         sim_res = st.session_state.simulation_result
-
-        def _get(o, k, d=""):
-            return o.get(k,d) if isinstance(o,dict) else getattr(o,k,d)
 
         n_issues   = len(issues)
         n_critical = sum(1 for i in issues if _get(i,"severity","").lower() == "critical")
