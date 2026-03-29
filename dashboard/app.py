@@ -240,8 +240,8 @@ with col_vt:
                         font-size:11px;background:#060d14;border:1px solid #1a2838;
                         border-radius:6px;padding:12px 14px;color:#6b8299;">
                 <span style="color:#3d5166;"># ❌ What attackers love to find:</span><br>
-                DATABASE_PASSWORD=<span style="color:#f04f47;">admin123</span><br>
-                STRIPE_API_KEY=<span style="color:#f04f47;">sk_live_abc123xyz</span><br><br>
+                db_password=<span style="color:#f04f47;">"p@ssw0rd!#A1B2C3"</span><br>
+                db_user=<span style="color:#f04f47;">"admin_root"</span><br><br>
                 <span style="color:#3d5166;"># ✅ What SecConfig Analyzer fixes it to:</span><br>
                 DATABASE_PASSWORD=<span style="color:#3dba6e;">${DATABASE_PASSWORD}</span><br>
                 STRIPE_API_KEY=<span style="color:#3dba6e;">${STRIPE_API_KEY}</span>

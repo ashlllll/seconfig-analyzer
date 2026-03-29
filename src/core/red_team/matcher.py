@@ -31,6 +31,50 @@ class MatchResult:
         )
 
 
+# Keys whose values are never secrets — used to suppress false positives
+# from description/hint/comment-style YAML fields.
+_SAFE_KEY_PREFIXES = (
+    "description",
+    "hint",
+    "comment",
+    "label",
+    "title",
+    "name",
+    "message",
+    "example",
+    "note",
+    "text",
+    "help",
+    "info",
+    "url",        # URL values may contain "password" in path segments
+    "link",
+    "doc",
+)
+
+# Regex to extract the key from a "key = value" or "key: value" line
+_KEY_EXTRACT_RE = re.compile(
+    r'^\s*(?:export\s+)?([A-Za-z_]\w*)\s*(?:=|:)', re.IGNORECASE
+)
+
+
+def _is_safe_key(line: str) -> bool:
+    """
+    Return True when the config key on this line is a known non-secret field.
+
+    This prevents false positives on YAML description/hint lines that happen
+    to contain words like "password" or "secret" in their prose values.
+
+    FIX: Addresses the false-positive bug where lines such as
+        description: "A password is hard-coded in the configuration file."
+    were being flagged as vulnerabilities.
+    """
+    m = _KEY_EXTRACT_RE.match(line)
+    if not m:
+        return False
+    key = m.group(1).lower()
+    return any(key.startswith(prefix) for prefix in _SAFE_KEY_PREFIXES)
+
+
 class Matcher:
     """
     Handles low-level regex pattern matching against config file content.
@@ -86,6 +130,11 @@ class Matcher:
         Returns:
             MatchResult if any pattern matches, None otherwise
         """
+        # FIX: Skip lines whose key is a known non-secret field.
+        # This prevents prose descriptions in YAML from triggering rules.
+        if _is_safe_key(line):
+            return None
+
         # Try original line first, then normalised variants to support
         # JSON/YAML key quoting and ":" assignments.
         candidates = [line]
@@ -134,6 +183,17 @@ class Matcher:
         Exclusions are used to reduce false positives — for example,
         a line like DATABASE_PASSWORD=${DB_PASS} should not be flagged.
 
+        FIX: Exclusion patterns that are just '(?i)#' (matching any line
+        containing a hash) previously suppressed lines with inline comments
+        such as:
+            DATABASE_PASSWORD=admin123  # TODO: change this
+        These lines ARE vulnerable and should NOT be excluded.
+
+        The fix: only apply the bare '#' exclusion pattern against the
+        VALUE portion of the line (after the '='), not the whole line.
+        This preserves the intent (skip comment-only values like
+        SOME_KEY=#placeholder) while not hiding real secrets with comments.
+
         Args:
             line:               The line content to check
             exclusion_patterns: List of regex patterns that indicate safe usage
@@ -143,8 +203,26 @@ class Matcher:
         """
         for pattern in exclusion_patterns:
             compiled = self.compile_pattern(pattern)
-            if compiled.search(line):
-                return True
+
+            # FIX: For bare comment patterns (only '#' or whitespace around it),
+            # test against the value portion only so that inline comments on
+            # vulnerable lines don't suppress the finding.
+            stripped_pattern = pattern.replace("(?i)", "").strip()
+            is_comment_pattern = stripped_pattern in ("#", r"(?i)#")
+
+            if is_comment_pattern:
+                # Extract value after '=' or ':' to check
+                value_match = re.match(
+                    r'^\s*[A-Za-z_]\w*\s*(?:=|:)\s*(.*)', line
+                )
+                target = value_match.group(1).strip() if value_match else line
+                # Only exclude if the VALUE itself is a comment/placeholder
+                if target.startswith("#"):
+                    return True
+            else:
+                if compiled.search(line):
+                    return True
+
         return False
 
     def get_context(
@@ -208,9 +286,17 @@ class Matcher:
         lines = content.splitlines()
 
         for line_number, line in enumerate(lines, start=1):
-            # Skip empty lines and comment-only lines
+            # Skip empty lines
             stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
+            if not stripped:
+                continue
+
+            # Skip pure comment lines (entire line is a comment).
+            # FIX: Only skip lines where '#' is the FIRST non-whitespace
+            # character. Do NOT skip lines that merely contain '#' somewhere
+            # (e.g. inline comments after a value) — those may still be
+            # vulnerable and must be evaluated.
+            if stripped.startswith("#"):
                 continue
 
             # Check exclusions first

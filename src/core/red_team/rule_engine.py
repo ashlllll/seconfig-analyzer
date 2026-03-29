@@ -6,7 +6,7 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Tuple
 
 import yaml
 
@@ -112,13 +112,26 @@ class RuleEngine:
         """
         Apply all loaded rules to a configuration file.
 
+        FIX: Added deduplication so that a single vulnerable line cannot be
+        reported more than once for the same category. Without this, a line
+        like:
+            DATABASE_PASSWORD=admin123
+        could be flagged by both CRED-001 (Hard-coded Password) and CRED-004
+        (Weak Secret Key), inflating the issue count and confusing users.
+
+        Deduplication key: (line_number, category)
+        — the same line can still be flagged by rules from DIFFERENT categories
+        (e.g. a line that is both a credential issue and a baseline issue),
+        but within a category only the highest-severity match is kept.
+
         Args:
             config: Parsed ConfigFile object
 
         Returns:
             List of SecurityIssue objects, sorted by severity
         """
-        issues = []
+        # Collect all raw findings first
+        all_findings: List[Tuple[MatchResult, Dict[str, Any]]] = []
 
         for rule in self.rules:
             # Check if rule applies to this file type
@@ -140,13 +153,30 @@ class RuleEngine:
                 exclusion_patterns=exclusion_patterns,
             )
 
-            # Create an Issue for each match
             for match in matches:
-                issue = self._create_issue(match, rule, config)
-                issues.append(issue)
+                all_findings.append((match, rule))
+
+        # FIX: Deduplicate — within each (line_number, category) bucket,
+        # keep only the finding from the highest-severity rule.
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+
+        # Map (line_number, category) → (severity_weight, match, rule)
+        best: Dict[Tuple[int, str], Tuple[int, MatchResult, Dict]] = {}
+
+        for match, rule in all_findings:
+            key = (match.line_number, rule.get("category", "baseline"))
+            sev_weight = severity_order.get(rule.get("severity", "info"), 99)
+
+            if key not in best or sev_weight < best[key][0]:
+                best[key] = (sev_weight, match, rule)
+
+        # Build SecurityIssue objects from deduplicated findings
+        issues: List[SecurityIssue] = []
+        for _sev_weight, match, rule in best.values():
+            issue = self._create_issue(match, rule, config)
+            issues.append(issue)
 
         # Sort by severity weight (critical first)
-        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
         issues.sort(key=lambda x: severity_order.get(x.severity, 99))
 
         return issues

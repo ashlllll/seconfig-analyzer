@@ -39,7 +39,7 @@ st.markdown(
             📤 Upload Configuration File
         </h1>
         <p style="color:#6b8299;font-size:13px;margin-top:6px;">
-            Supported formats: <code>.env</code> · <code>.yaml</code> / <code>.yml</code> · <code>.json</code>
+            Supported formats: <code>.env</code> · <code>.yaml</code>· <code>.json</code>
             &nbsp;|&nbsp; Max size: 10 MB &nbsp;|&nbsp; Synthetic test files only
         </p>
     </div>
@@ -53,7 +53,7 @@ with col_left:
     # ── File uploader ──────────────────────────────────────────────────────────
     uploaded = st.file_uploader(
         "Drop your configuration file here",
-        type=["env", "yaml", "yml", "json"],
+        type=["env", "yaml", "json"],
         help="Only synthetic/test configuration files. No real production data.",
         label_visibility="collapsed",
     )
@@ -61,9 +61,6 @@ with col_left:
     if uploaded:
         raw = uploaded.read().decode("utf-8", errors="replace")
         ext = Path(uploaded.name).suffix.lstrip(".").lower()
-        if ext == "yml":
-            ext = "yaml"
-
         # Reset downstream state on new file
         if uploaded.name != st.session_state.file_name:
             st.session_state.issues           = []
