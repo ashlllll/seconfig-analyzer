@@ -400,12 +400,8 @@ def render_sidebar(current_page: str = "") -> None:
             "Home" | "Upload" | "Red Team" | "Blue Team" |
             "Risk Analysis" | "AI Explainer" | "Reports"
     """
-    # Inject CSS only once per session — Streamlit re-injects on every rerun
-    # by default, which is redundant and adds minor overhead.
-    if not st.session_state.get("_sidebar_css_injected"):
-        st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
-        st.session_state["_sidebar_css_injected"] = True
 
+    st.markdown(_SIDEBAR_CSS, unsafe_allow_html=True)
     # Ensure all session keys exist before reading them.
     # Single source of truth — app.py no longer needs its own copy.
     _SESSION_DEFAULTS = {
