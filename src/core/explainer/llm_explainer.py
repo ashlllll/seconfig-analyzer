@@ -10,6 +10,11 @@ Architecture constraints (by design)
   configuration file content.
 * It cannot modify, trigger, or influence any security decision.
 * All API errors are caught and returned as user-friendly messages.
+
+Supported backends
+------------------
+* ``"ollama"``  — Local Ollama server (default, free, no API key needed).
+* ``"openai"``  — OpenAI API (requires OPENAI_API_KEY).
 """
 
 from __future__ import annotations
@@ -23,66 +28,54 @@ from src.core.explainer.prompt_builder import DynamicPromptBuilder
 
 log = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
-# Type alias for the analysis report context
-# ---------------------------------------------------------------------------
+OLLAMA_DEFAULT_URL   = "http://localhost:11434"
+OLLAMA_DEFAULT_MODEL = "llama3.2:1b"
+
 ReportContext = dict[str, Any]
 
 
-class LLMExplainerService:
-    """
-    Post-analysis natural language explanation service.
+def check_ollama_status(base_url: str = OLLAMA_DEFAULT_URL) -> tuple[bool, str]:
+    try:
+        import requests
+        resp = requests.get(f"{base_url}/api/tags", timeout=3)
+        if resp.status_code == 200:
+            models = [m["name"] for m in resp.json().get("models", [])]
+            return True, f"Ollama running · {len(models)} model(s) available"
+        return False, f"Ollama responded with HTTP {resp.status_code}"
+    except Exception as exc:
+        return False, f"Ollama not reachable: {exc}"
 
-    Parameters
-    ----------
-    enabled:
-        Whether the service is active.  Defaults to ``False``.
-    api_key:
-        OpenAI API key.  Falls back to the ``OPENAI_API_KEY`` environment
-        variable when not provided.
-    model:
-        OpenAI model to use (default ``"gpt-4"``).
-    temperature:
-        Controls output randomness (higher = more varied).
-    max_tokens:
-        Maximum tokens in the LLM response.
-    """
+
+class LLMExplainerService:
 
     def __init__(
         self,
         enabled: bool = False,
+        backend: str = "ollama",
         api_key: Optional[str] = None,
-        model: str = "gpt-4",
+        ollama_url: str = OLLAMA_DEFAULT_URL,
+        model: str = OLLAMA_DEFAULT_MODEL,
         temperature: float = 0.8,
         max_tokens: int = 500,
         presence_penalty: float = 0.6,
         frequency_penalty: float = 0.6,
     ) -> None:
         self.enabled           = enabled
+        self.backend           = backend.lower()
+        self.ollama_url        = ollama_url.rstrip("/")
         self.model             = model
         self.temperature       = temperature
         self.max_tokens        = max_tokens
         self.presence_penalty  = presence_penalty
         self.frequency_penalty = frequency_penalty
-
-        # Resolve API key (explicit → env var)
-        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
-
-        # Conversation history for diversity tracking
+        self._api_key          = api_key or os.getenv("OPENAI_API_KEY")
         self._history: list[dict[str, str]] = []
-
-        # Prompt builder
         self._prompt_builder = DynamicPromptBuilder()
 
-        if self.enabled and not self._api_key:
-            log.warning(
-                "LLM Explainer is enabled but no API key was provided. "
-                "Set OPENAI_API_KEY or pass api_key= explicitly."
-            )
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        if self.enabled and self.backend == "ollama":
+            ok, msg = check_ollama_status(self.ollama_url)
+            if not ok:
+                log.warning("LLM Explainer: %s", msg)
 
     def explain(
         self,
@@ -90,95 +83,38 @@ class LLMExplainerService:
         user_query: str,
         user_background: str = "junior_dev",
     ) -> str:
-        """
-        Generate a natural-language explanation for *user_query*.
-
-        Parameters
-        ----------
-        report_context:
-            Dictionary produced by :meth:`build_context`.
-        user_query:
-            The user's question or request.
-        user_background:
-            One of ``"junior_dev"`` | ``"manager"`` | ``"security_expert"``.
-
-        Returns
-        -------
-        str
-            Explanation text (or a fallback message if disabled/unavailable).
-        """
         if not self.enabled:
             return (
                 "🔒 **LLM Explainer is disabled.**\n\n"
-                "Enable it via Settings to ask questions about the analysis results.\n"
-                "Note: The LLM only has access to *analysis outputs* — never your raw config files."
+                "Enable it via the sidebar toggle to ask questions about the analysis.\n"
+                "Note: the LLM only has access to *analysis outputs* — never your raw config files."
             )
 
-        if not self._api_key:
-            return (
-                "⚠️ **LLM Explainer is enabled but no API key is configured.**\n\n"
-                "Please set the `OPENAI_API_KEY` environment variable and restart the app."
-            )
-
-        # Merge user background into context
         context = {**report_context, "user_background": user_background}
-
-        # Determine phrases to avoid (diversity enforcement)
         avoid_phrases = self._prompt_builder.extract_overused_phrases(self._history)
-
-        # Build prompt
         prompt = self._prompt_builder.build(
             context=context,
             user_query=user_query,
             avoid_phrases=avoid_phrases,
         )
 
-        # Call LLM
-        response_text = self._call_llm(prompt)
+        if self.backend == "ollama":
+            response_text = self._call_ollama(prompt)
+        else:
+            response_text = self._call_openai(prompt)
 
-        # Record in history
         self._history.append({"query": user_query, "response": response_text})
-
         return response_text
-
-    # ------------------------------------------------------------------
 
     @staticmethod
     def build_context(
         config_file_name: str,
-        issues: list[Any],          # List[SecurityIssue]
-        fixes: list[Any],           # List[SecurityFix]
+        issues: list[Any],
+        fixes: list[Any],
         initial_risk: float,
         final_risk: float,
         risk_reduction_pct: float,
     ) -> ReportContext:
-        """
-        Construct the context dictionary passed to :meth:`explain`.
-
-        This method acts as a data-minimisation layer: only summary statistics
-        and sanitised issue metadata are included — **no raw config content**.
-
-        Parameters
-        ----------
-        config_file_name:
-            Name of the analysed configuration file (display only).
-        issues:
-            Full list of ``SecurityIssue`` objects.
-        fixes:
-            Full list of ``SecurityFix`` objects.
-        initial_risk:
-            Monte Carlo mean risk score before remediation (0–100).
-        final_risk:
-            Monte Carlo mean risk score after remediation (0–100).
-        risk_reduction_pct:
-            Percentage reduction in risk score.
-
-        Returns
-        -------
-        dict
-            Safe context dictionary for the prompt builder.
-        """
-        # Group issues by severity for the summary
         severity_counts: dict[str, int] = {}
         issues_summary: list[dict[str, Any]] = []
 
@@ -186,67 +122,84 @@ class LLMExplainerService:
             sev = getattr(issue, "severity", "unknown").lower()
             severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-        # Include only the first 5 issues in the summary (data minimisation)
         for issue in issues[:5]:
-            issues_summary.append(
-                {
-                    "rule_id":     getattr(issue, "rule_id", ""),
-                    "title":       getattr(issue, "title", "Unknown"),
-                    "severity":    getattr(issue, "severity", ""),
-                    "category":    getattr(issue, "category", ""),
-                    "line_number": getattr(issue, "line_number", 0),
-                    "nist":        getattr(issue, "nist_function", ""),
-                }
-            )
+            issues_summary.append({
+                "rule_id":     getattr(issue, "rule_id", ""),
+                "title":       getattr(issue, "title", "Unknown"),
+                "severity":    getattr(issue, "severity", ""),
+                "category":    getattr(issue, "category", ""),
+                "line_number": getattr(issue, "line_number", 0),
+                "nist":        getattr(issue, "nist_function", ""),
+            })
 
         auto_fixes   = sum(1 for f in fixes if getattr(f, "fix_type", "") == "automated")
         manual_fixes = sum(1 for f in fixes if getattr(f, "fix_type", "") == "manual")
 
         return {
-            "config_file":      config_file_name,
-            "total_issues":     len(issues),
-            "critical_count":   severity_counts.get("critical", 0),
-            "high_count":       severity_counts.get("high", 0),
-            "medium_count":     severity_counts.get("medium", 0),
-            "low_count":        severity_counts.get("low", 0),
-            "severity_counts":  severity_counts,
-            "issues_summary":   issues_summary,
-            "total_fixes":      len(fixes),
-            "auto_fixes":       auto_fixes,
-            "manual_fixes":     manual_fixes,
-            "risk_score":       initial_risk,
-            "final_risk":       final_risk,
-            "risk_reduction":   risk_reduction_pct,
-            "generated_at":     datetime.now().isoformat(),
+            "config_file":     config_file_name,
+            "total_issues":    len(issues),
+            "critical_count":  severity_counts.get("critical", 0),
+            "high_count":      severity_counts.get("high", 0),
+            "medium_count":    severity_counts.get("medium", 0),
+            "low_count":       severity_counts.get("low", 0),
+            "severity_counts": severity_counts,
+            "issues_summary":  issues_summary,
+            "total_fixes":     len(fixes),
+            "auto_fixes":      auto_fixes,
+            "manual_fixes":    manual_fixes,
+            "risk_score":      initial_risk,
+            "final_risk":      final_risk,
+            "risk_reduction":  risk_reduction_pct,
+            "generated_at":    datetime.now().isoformat(),
         }
 
-    # ------------------------------------------------------------------
-
     def clear_history(self) -> None:
-        """Reset conversation history (e.g. when a new file is uploaded)."""
         self._history.clear()
-        log.debug("LLM conversation history cleared.")
 
     @property
     def conversation_history(self) -> list[dict[str, str]]:
-        """Read-only view of the conversation history."""
         return list(self._history)
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
-    def _call_llm(self, prompt: dict[str, str]) -> str:
-        """
-        Dispatch to the OpenAI API and return the response text.
-
-        Falls back gracefully on any exception.
-        """
+    def _call_ollama(self, prompt: dict[str, str]) -> str:
         try:
-            import openai  # lazy import – not required unless LLM is enabled
+            import requests
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": prompt["system"]},
+                    {"role": "user",   "content": prompt["user"]},
+                ],
+                "stream": False,
+                "options": {
+                    "temperature": self.temperature,
+                    "num_predict": self.max_tokens,
+                },
+            }
+            resp = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            text = resp.json()["message"]["content"]
+            return text.strip()
 
+        except Exception as exc:
+            log.error("Ollama call failed: %s", exc)
+            return (
+                f"⚠️ **Could not reach Ollama.**\n\nError: `{exc}`\n\n"
+                "**Quick fixes:**\n"
+                "1. Run `ollama serve` in a terminal\n"
+                f"2. Check model is pulled: `ollama pull {self.model}`\n\n"
+                "The deterministic analysis results above are unaffected."
+            )
+
+    def _call_openai(self, prompt: dict[str, str]) -> str:
+        if not self._api_key:
+            return "⚠️ No OpenAI API key. Switch to Ollama backend instead."
+        try:
+            import openai
             client = openai.OpenAI(api_key=self._api_key)
-
             response = client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -255,26 +208,7 @@ class LLMExplainerService:
                 ],
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                presence_penalty=self.presence_penalty,
-                frequency_penalty=self.frequency_penalty,
             )
-
-            text = response.choices[0].message.content or ""
-            log.debug("LLM response received (%d chars).", len(text))
-            return text.strip()
-
-        except ImportError:
-            msg = (
-                "The `openai` package is not installed. "
-                "Run `pip install openai` to enable LLM explanations."
-            )
-            log.error(msg)
-            return f"⚠️ {msg}"
-
-        except Exception as exc:  # broad catch – LLM errors must not crash the app
-            log.error("LLM API call failed: %s", exc)
-            return (
-                f"⚠️ **LLM explanation unavailable.**\n\n"
-                f"Error: {exc}\n\n"
-                "The deterministic analysis results above are unaffected."
-            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception as exc:
+            return f"⚠️ OpenAI error: {exc}"

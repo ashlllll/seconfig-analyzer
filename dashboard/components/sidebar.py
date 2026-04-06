@@ -346,27 +346,18 @@ def _render_session_status(ss) -> None:
 
 
 def _render_settings(ss) -> None:
-    """LLM toggle + API key input at the very bottom of the sidebar."""
+    """LLM status indicator at the very bottom of the sidebar."""
     _section_label("Settings")
 
-    st.sidebar.toggle(
-        "🤖 LLM Explainer",
-        key="llm_enabled",
-        help="Enables the optional AI explanation layer. "
-             "AI is used for natural language explanation ONLY — "
-             "never for security decisions.",
+    # LLM toggle lives on the AI Explainer page — just show status here
+    llm_on = ss.get("llm_enabled", False)
+    colour  = "#3dba6e" if llm_on else "#3d5166"
+    label   = "🤖 LLM Explainer: ON" if llm_on else "🤖 LLM Explainer: OFF"
+    st.sidebar.markdown(
+        f'<div style="padding:6px 14px;font-family:\'JetBrains Mono\',monospace;'
+        f'font-size:11px;color:{colour};">{label}</div>',
+        unsafe_allow_html=True,
     )
-
-    if ss.get("llm_enabled"):
-        api_val = st.sidebar.text_input(
-            "OpenAI API Key",
-            value=ss.get("llm_api_key", ""),
-            type="password",
-            placeholder="sk-...",
-            key="llm_api_key_sidebar",
-            help="Stored in this session only, never logged or transmitted externally.",
-        )
-        st.session_state["llm_api_key"] = api_val
 
     # Bottom footer
     st.sidebar.markdown(
