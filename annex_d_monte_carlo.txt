@@ -1,0 +1,56 @@
+==============================================================================
+File: sample_01.env
+Issues detected: 15
+Before mean: 43.9158
+Before std:  2.5189
+After mean:  11.1922
+After std:   8.3479
+Wilcoxon p-value: 0.0000
+95% CI of reduction: [11.21, 44.91]
+Risk reduction: 32.72 (74.51%)
+Significant: True
+==============================================================================
+File: sample_02.env
+Issues detected: 10
+Before mean: 38.4762
+Before std:  2.6431
+After mean:  11.1922
+After std:   8.3479
+Wilcoxon p-value: 0.0000
+95% CI of reduction: [5.90, 39.72]
+Risk reduction: 27.28 (70.91%)
+Significant: True
+==============================================================================
+File: sample_03.yaml
+Issues detected: 14
+Before mean: 56.8198
+Before std:  2.8030
+After mean:  11.1922
+After std:   8.3479
+Wilcoxon p-value: 0.0000
+95% CI of reduction: [24.30, 58.10]
+Risk reduction: 45.63 (80.30%)
+Significant: True
+==============================================================================
+File: sample_04.json
+Issues detected: 9
+Before mean: 27.7802
+Before std:  2.6407
+After mean:  27.8067
+After std:   2.6268
+Wilcoxon p-value: 0.5571
+95% CI of reduction: [-7.37, 7.36]
+Risk reduction: -0.03 (0.00%)
+Significant: False
+==============================================================================
+File: sample_05.env
+Issues detected: 8
+Before mean: 36.9346
+Before std:  2.9396
+After mean:  11.1922
+After std:   8.3479
+Wilcoxon p-value: 0.0000
+95% CI of reduction: [4.53, 38.32]
+Risk reduction: 25.74 (69.70%)
+Significant: True
+==============================================================================
